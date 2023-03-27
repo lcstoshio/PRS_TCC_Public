@@ -1,0 +1,15 @@
+######## Download PLINK 1.9 if not already downloaded ########
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
+unzip plink_linux_x86_64_20220402.zip
+rm toy* plink_linux_x86_64_20220402.zip
+
+######## Creating eigenvec file from PCA analysis ########
+./plink --bfile prefix_bem_bim_fam_file --pca numberofPCs --out prefix_output_file
+# Example: ./plink --bfile Individuals_Final --pca 10 --out Individuals_Final_pca10
+
+######## Plotting PCA graph in RStudio ########
+eigenvec <- select (read.table( "Individuals_Final_pca10.eigenvec", header = F), -1) # substitute with your eigenvec file
+colnames(eigenvec) <- c("IID", paste0("PC", 1:10)) # substitute by the number of PCs used in the analysis
+library(ggplot2)
+# Analysis by paring different PCs and plotting them in a graph
+ggplot(data=eigenvec, aes(x=eigenvec$PC1, y=eigenvec$PC2)) + geom_point(shape=19, alpha=0.4, size=3)
