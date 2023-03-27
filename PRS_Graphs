@@ -1,0 +1,53 @@
+---
+title: "PRS Graphs"
+author: "Lucas Toshio Ito"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::readthedown:
+  highlight: pygments
+---
+
+[**Original tutorial in portuguese with test data**](https://github.com/Lcstoshio/Lcstoshio.github.io/blob/main/Tutorial_graphPRS/Code.Rmd)
+
+# **Graph for Polygenic Risk Score (PRS)**
+
+```{r message=FALSE, warning=FALSE}
+# Packages used
+library (ggplot2) #graphs
+library (plyr) #join_all, ddply
+library (dplyr) #mutate
+```
+
+## **Manipulating database**
+
+```{r}
+prs <- read.table ("./PRS_scores_file", header=T) # Reading your file with the scores
+prs <- prs [,c("FID", "IID", "Pt_0.01")] # Select your p-threshold of interest
+colnames(prs)[3] <- "PRS" # Rename the column with the score
+
+phenotype <- read.table ("./Phenotype_file", header = T) # Reading your file with the phenotype (must be in this order: FID, IID, Phenotype)
+colnames(phenotype) <- c("FID2", "IID", "pheno")
+phenotype <- mutate(phenotype, pheno=factor(pheno, labels=c('Controle', 'Caso'))) # use if your phenotype is binary
+
+final <- join_all(list(prs, phenotype),by = "IID", type="inner") # joining those two files
+```
+
+## **Graphs (ggplot2)**
+
+```{r}
+# Only if the phenotype is separated in groups
+mean <- ddply(final, "pheno", summarise, grp.mean=mean(PRS)) # Calculating the mean of the scores for each group
+mean
+
+table(final$pheno) # Counting the cases and controls
+
+ggplot(final, aes(x=PRS, group=pheno, fill=pheno))+
+     geom_density(alpha=0.5)+
+     geom_vline(data=mean, aes(xintercept=grp.mean, colour=pheno), linetype="dashed", size=0.8)+
+     scale_fill_brewer(palette="Set1") +
+     scale_color_brewer(palette="Set1") +
+     theme_classic()+
+     theme(plot.title = element_text(color="black", size=14, face="bold.italic"), legend.position = "right")+
+     ggtitle ("PRS Density Curve")+ 
+     labs(x="Polygenic Risk Score", y="Density")
+```
