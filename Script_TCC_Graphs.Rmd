@@ -7,8 +7,6 @@ output:
   highlight: pygments
 ---
 
-# **Organização de Fenótipo e Resultados do PRSice**
-
 ```{r set options, include=FALSE}
 options(width = 700)
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, out.width = "100%",
@@ -37,6 +35,573 @@ font_add_google("Lato", "Lato")
 showtext_auto()
 library(fmsb)
 ```
+
+# **Categorização Projeto Lucas**
+## **Geral**
+
+Diagnóstio dos probandos
+```{r}
+junto_projeto <- junto
+
+# Ansiedade
+junto_projeto$everAnx <- if_else(junto_projeto$everAnx==2,1,0)
+table(junto_projeto$everAnx)
+
+# Bipolar
+junto_projeto$everBD <- if_else(junto_projeto$everBD==2,1,0)
+table(junto_projeto$everBD)
+
+# ADHD
+junto_projeto$everHK <- if_else(junto_projeto$everHK==2,1,0)
+table(junto_projeto$everHK)
+
+# Depressão
+junto_projeto$everMDD <- if_else(junto_projeto$everMDD==2,1,0)
+table(junto_projeto$everMDD)
+
+# Esquizofrenia
+junto_projeto$everPsych <- if_else(junto_projeto$everPsych==2,1,0)
+table(junto_projeto$everPsych)
+
+# Soma dos diagnósticos
+junto_projeto$sumsMD <- rowSums(junto_projeto[,c(135:139)])
+table(junto_projeto$sumsMD)
+```
+
+Histórico familiar
+```{r}
+mama_HF_projeto <- join_all(list(list_mama_HF, mama_G), by="ids", type="inner")
+papa_HF_projeto <- join_all(list(list_papa_HF, papa_G), by="ids", type="inner")
+
+HF_projeto <- mama_HF_projeto #rbind(mama_HF_projeto, papa_HF_projeto)
+
+# Ansiedade
+HF_projeto$HFANX <- if_else(HF_projeto$HF_cur_anx==1,1,0)
+table(HF_projeto$HFANX)
+
+# Bipolar
+HF_projeto$HFBD <- if_else(HF_projeto$HF_cur_man==1|HF_projeto$HF_lif_man==1,1,0)
+table(HF_projeto$HFBD)
+
+# ADHD
+HF_projeto$HFADHD <- if_else(HF_projeto$HF_child_adhd==1|HF_projeto$HF_cur_adhd==1,1,0)
+table(HF_projeto$HFADHD)
+
+# Depressão
+HF_projeto$HFMDD <- if_else(HF_projeto$HF_cur_dep==1|HF_projeto$HF_cur_rdep==1,1,0)
+table(HF_projeto$HFMDD)
+
+# Esquizofrenia
+HF_projeto$HFSCZ <- if_else(HF_projeto$HF_lif_psych==1|HF_projeto$HF_cur_psych==1,1,0)
+table(HF_projeto$HFSCZ)
+
+# Soma dos diagnósticos (HF)
+HF_projeto$sumsFH <- rowSums(HF_projeto[,c(38:42)])
+table(HF_projeto$sumsFH)
+```
+
+Juntando diagnóstico de crianças e pais
+
+```{r}
+final_projeto <- join_all(list(junto_projeto, HF_projeto), by="ids", type="inner")
+
+final_projeto$groups <- 0
+final_projeto$groups[final_projeto$sumsMD==0 & final_projeto$sumsFH==0] <- "Controle"
+final_projeto$groups[final_projeto$sumsMD==1 & final_projeto$sumsFH==0] <- "Caso único"
+final_projeto$groups[final_projeto$sumsMD==0 & final_projeto$sumsFH>0] <- "Somente histórico familiar"
+final_projeto$groups[final_projeto$sumsMD>1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groups[final_projeto$sumsMD==1 & final_projeto$sumsFH>0] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+
+table(final_projeto$groups)
+```
+
+## **Específicos por transtorno**
+
+```{r}
+# Ansiedade
+final_projeto$everAnxC <- final_projeto$everAnx
+final_projeto$everAnxC [final_projeto$everAnx== 1 & final_projeto$everBD==1 |final_projeto$everAnx== 1 & final_projeto$everHK==1 |final_projeto$everAnx== 1 & final_projeto$everMDD==1 |final_projeto$everAnx== 1 & final_projeto$everPsych==1] <- 2 
+table(final_projeto$everAnxC)
+
+# Bipolar
+final_projeto$everBDC <- final_projeto$everBD
+final_projeto$everBDC [final_projeto$everBD == 1 & final_projeto$everAnx==1 |final_projeto$everBD == 1 & final_projeto$everHK==1 |final_projeto$everBD == 1 & final_projeto$everMDD==1 |final_projeto$BD == 1 & final_projeto$everPsych==1] <- 2 
+table(final_projeto$everBDC)
+
+# ADHD
+final_projeto$everADHDC <- final_projeto$everHK
+final_projeto$everADHDC [final_projeto$everHK == 1 & final_projeto$everAnx==1 |final_projeto$everHK == 1 & final_projeto$everBD==1 |final_projeto$everHK == 1 & final_projeto$everMDD==1 |final_projeto$everHK == 1 &  final_projeto$everPsych==1] <- 2 
+table(final_projeto$everADHDC)
+
+# Depressão
+final_projeto$everMDDC <- final_projeto$everMDD
+final_projeto$everMDDC [final_projeto$everMDD == 1 & final_projeto$everAnx==1 |final_projeto$everMDD == 1 & final_projeto$everBD==1 |final_projeto$everMDD == 1 & final_projeto$everHK==1 |final_projeto$everMDD == 1 & final_projeto$everPsych==1] <- 2 
+table(final_projeto$everMDDC)
+
+# Esquizofrenia
+final_projeto$everSCZC <- final_projeto$everPsych
+final_projeto$everSCZC [final_projeto$everPsych == 1 & final_projeto$everAnx==1 |final_projeto$everPsych == 1 & final_projeto$everBD==1 | final_projeto$everPsych == 1 & final_projeto$everHK==1 | final_projeto$everPsych == 1 & final_projeto$everMDD==1] <- 2 
+table(final_projeto$everSCZC)
+
+### Categorias ###
+
+# Ansiedade
+final_projeto$groupsANX <- 0
+final_projeto$groupsANX[final_projeto$everAnxC==0 & final_projeto$HFANX==0] <- "Controle"
+final_projeto$groupsANX[final_projeto$everAnxC==1 & final_projeto$HFANX==0] <- "Caso único"
+final_projeto$groupsANX[final_projeto$everAnxC==0 & final_projeto$HFANX==1] <- "Somente histórico familiar"
+final_projeto$groupsANX[final_projeto$everAnxC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groupsANX[final_projeto$everAnxC==1 & final_projeto$HFANX==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$groupsANX)
+
+# Bipolar
+final_projeto$groupsBD <- 0
+final_projeto$groupsBD[final_projeto$everBDC==0 & final_projeto$HFBD==0] <- "Controle"
+final_projeto$groupsBD[final_projeto$everBDC==1 & final_projeto$HFBD==0] <- "Caso único"
+final_projeto$groupsBD[final_projeto$everBDC==0 & final_projeto$HFBD==1] <- "Somente histórico familiar"
+final_projeto$groupsBD[final_projeto$everBDC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groupsBD[final_projeto$everBDC==1 & final_projeto$HFBD==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$groupsBD)
+
+# ADHD
+final_projeto$groupsADHD <- 0
+final_projeto$groupsADHD[final_projeto$everADHDC==0 & final_projeto$HFADHD==0] <- "Controle"
+final_projeto$groupsADHD[final_projeto$everADHDC==1 & final_projeto$HFADHD==0] <- "Caso único"
+final_projeto$groupsADHD[final_projeto$everADHDC==0 & final_projeto$HFADHD==1] <- "Somente histórico familiar"
+final_projeto$groupsADHD[final_projeto$everADHDC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groupsADHD[final_projeto$everADHDC==1 & final_projeto$HFADHD==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$groupsADHD)
+
+# Depressão
+final_projeto$groupsMDD <- 0
+final_projeto$groupsMDD[final_projeto$everMDDC==0 & final_projeto$HFMDD==0] <- "Controle"
+final_projeto$groupsMDD[final_projeto$everMDDC==1 & final_projeto$HFMDD==0] <- "Caso único"
+final_projeto$groupsMDD[final_projeto$everMDDC==0 & final_projeto$HFMDD==1] <- "Somente histórico familiar"
+final_projeto$groupsMDD[final_projeto$everMDDC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groupsMDD[final_projeto$everMDDC==1 & final_projeto$HFMDD==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$groupsMDD)
+
+# Esquizofrenia
+final_projeto$groupsSCZ <- 0
+final_projeto$groupsSCZ[final_projeto$everSCZC==0 & final_projeto$HFSCZ==0] <- "Controle"
+final_projeto$groupsSCZ[final_projeto$everSCZC==1 & final_projeto$HFSCZ==0] <- "Caso único"
+final_projeto$groupsSCZ[final_projeto$everSCZC==0 & final_projeto$HFSCZ==1] <- "Somente histórico familiar"
+final_projeto$groupsSCZ[final_projeto$everSCZC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$groupsSCZ[final_projeto$everSCZC==1 & final_projeto$HFSCZ==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$groupsSCZ)
+```
+
+## **Keep IDs**
+
+```{r}
+keep_projeto <- final_projeto[,c(1,2)]
+write_tsv (x = keep_projeto, file = "keep_projeto_1814.txt")
+```
+
+## **Histograma 2d**
+
+```{r}
+# Editar linha 171 para adicionar ou remover os NAs dos diagnósticos
+#keep_1814 <- join_all(list(keep_1814, duos_export_keep[2]), by="IID", type="inner")
+
+junto_1814 <- join_all(list(junto, keep_1814), by="ids", type="inner")
+junto_1814_histo2d[,3:17][junto_1814_histo2d[,3:17]==2] <- 1 # vamos chamar os controles de 1 e NA de 0
+
+junto_1814_histo2d$0=rowSums(cbind(junto_1814_histo2d[,c(3:7)]))#,na.rm=TRUE)
+junto_1814_histo2d$1=rowSums(cbind(junto_1814_histo2d[,c(8:12)]))#,na.rm=TRUE)
+junto_1814_histo2d$2=rowSums(cbind(junto_1814_histo2d[,c(13:17)]))#,na.rm=TRUE)
+
+table(junto_1814_histo2d$0)
+table(junto_1814_histo2d$1)
+table(junto_1814_histo2d$2)
+
+junto_1814_histo2d <- junto_1814_histo2d[,c(1,2,18:20)]
+junto_1814_histo2d$Fill <- rowSums(junto_1814_histo2d[,c(3:5)], na.rm = TRUE)
+
+table(junto_1814_histo2d$Fill)
+
+1173+424+191+86+17+8+3 #1902
+
+count_18140 <- junto_1814_histo2d [complete.cases(junto_1814_histo2d[,3]),]
+count_18141 <- junto_1814_histo2d [complete.cases(junto_1814_histo2d[,4]),]
+count_18142 <- junto_1814_histo2d [complete.cases(junto_1814_histo2d[,5]),]
+
+caso_18140 <- count_18140 [count_18140$Fill>0,]
+caso_18141 <- count_18141 [count_18141$Fill>0,]
+caso_18142 <- count_18142 [count_18142$Fill>0,]
+
+controle_18140 <- count_18140 [count_18140$Fill==0,]
+controle_18141 <- count_18141 [count_18141$Fill==0,]
+controle_18142 <- count_18142 [count_18142$Fill==0,]
+
+teste_1814 <- join_all(list(controle_18141,controle_18142), by="IID", type="inner")
+
+junto_1814_histo2d[is.na(junto_1814_histo2d)] <- 4
+write_xlsx (junto_1814_histo2d, "histogram2d_1814.xlsx", format_headers = TRUE)
+
+table(junto_1814_histo2d$2)
+0 <- 0 [complete.cases(0[ ,1]),]
+```
+
+## **pheno PRSice**
+
+```{r}
+######################################################
+
+export_projeto <- final_projeto[,c(1,2,192,198:202)]
+export_projeto [export_projeto == "Controle"] <- 1
+export_projeto [export_projeto == "Caso único"] <- 2
+export_projeto [export_projeto == "Múltiplos diagnósticos/ Caso com histórico familiar"] <- 3
+export_projeto [export_projeto == "Somente histórico familiar"] <- -9
+
+write_tsv(export_projeto, file = "export_projeto.txt")
+
+keep_ADHD_c <- (export_projeto[!export_projeto$groupsADHD==4,])[,c(1,2)]
+write_tsv(x = keep_ADHD_c, file = "./TCC/keep_adhd_c.txt")
+keep_MDD_c <- (export_projeto[!export_projeto$groupsMDD==4,])[,c(1,2)]
+write_tsv(x = keep_MDD_c, file = "./TCC/keep_mdd_c.txt")
+keep_ANX_c <- (export_projeto[!export_projeto$groupsANX==4,])[,c(1,2)]
+write_tsv(x = keep_ANX_c, file = "./TCC/keep_anx_c.txt")
+keep_BD_c <- (export_projeto[!export_projeto$groupsBD==4,])[,c(1,2)]
+write_tsv(x = keep_BD_c, file = "./TCC/keep_bd_c.txt")
+keep_SCZ_c <- (export_projeto[!export_projeto$groupsSCZ==4,])[,c(1,2)]
+write_tsv(x = keep_SCZ_c, file = "./TCC/keep_scz_c.txt")
+
+#only case x control
+export_projeto_cc <- final_projeto[,c(1,2,192,198:202)]
+export_projeto_cc [export_projeto_cc == "Controle"] <- 1
+export_projeto_cc [export_projeto_cc == "Caso único"] <- 2
+export_projeto_cc [export_projeto_cc == "Múltiplos diagnósticos/ Caso com histórico familiar"] <- 2
+export_projeto_cc [export_projeto_cc == "Somente histórico familiar"] <- -9
+table(export_projeto_cc$groups)
+write_tsv(export_projeto_cc, file = "export_projeto_cc.txt")
+
+#Considerando somente histórico familiar como caso para BD e SCZ
+export_projeto_hist_bdscz <- final_projeto[,c(1,2,192,198:202)]
+export_projeto_hist_bdscz [export_projeto_hist_bdscz == "Controle"] <- 0
+export_projeto_hist_bdscz [export_projeto_hist_bdscz == "Caso único"] <- 1
+export_projeto_hist_bdscz [export_projeto_hist_bdscz == "Múltiplos diagnósticos/ Caso com histórico familiar"] <- 1
+export_projeto_hist_bdscz [export_projeto_hist_bdscz == "Somente histórico familiar"] <- 1
+table(export_projeto_hist_bdscz$groups)
+write_tsv(export_projeto_hist_bdscz, file = "export_projeto_hist_bdscz.txt")
+table(export_projeto_hist_bdscz$groupsBD)
+```
+
+## **UpSetR plot**
+
+```{r}
+upset_ever <- final_projeto[,c(2,135:139)]
+colnames(upset_ever) <- c("IID", "SCZ", "ANX", "TAB", "TDAH", "TDM")
+
+
+upset_0 <- final_projeto[,c(2,21,24,30,43,50)]
+upset_0 [upset_0 == 2] <- 1
+colnames(upset_0) <- c("IID", "TDM", "TAB", "TDAH", "SCZ", "ANX")
+
+upset_1 <- final_projeto[,c(2,63,66,72,85,92)]
+upset_1 [upset_1 == 2] <- 1
+colnames(upset_1) <- c("IID", "TDM", "TAB", "TDAH", "SCZ", "ANX")
+
+upset_2 <- final_projeto[,c(2,105,108,114,127,134)]
+upset_2 [upset_2 == 2] <- 1
+colnames(upset_2) <- c("IID", "TDM", "TAB", "TDAH", "SCZ", "ANX")
+
+library(RColorBrewer)
+brewer.pal(n=5,"Set1")
+str(upset_ever)
+
+upset(upset_ever, order.by = c("freq"), decreasing = c(T,F), nset=5, nintersects = 7, sets.bar.color=c("#377EB8","#984EA3","#E41A1C","#4DAF4A","#FF7F00"), keep.order = T, sets = c("ANX", "TDM", "TDAH", "TAB","SCZ"), text.scale = c(1.3,1.5,1.3,1.5,1.4,2.3))
+upset(upset_ever, order.by = c("freq", "degree"), decreasing = c(T,F), nset=5, nintersects = 100, sets.bar.color=c("#377EB8","#984EA3","#E41A1C","#4DAF4A","#FF7F00"), keep.order = T, sets = c("ANX", "TDM", "TDAH", "TAB","SCZ"), text.scale = c(1.3,1.2,1.3,1,1.2,1.6))
+
+
+upset(upset_0, order.by = c("freq","degree"), decreasing = c(T,F), nset=5, nintersects = 100, sets.bar.color=c("#377EB8","#984EA3","#E41A1C","#4DAF4A","#FF7F00"), keep.order = T, sets = c("ANX", "TDM", "TDAH", "TAB","SCZ"))
+upset(upset_1, order.by = c("freq","degree"), decreasing = c(T,F), nset=5, nintersects = 100, sets.bar.color=c("#377EB8","#984EA3","#E41A1C","#4DAF4A","#FF7F00"), keep.order = T, sets = c("ANX", "TDM", "TDAH", "TAB","SCZ"))
+upset(upset_2, order.by = c("freq","degree"), decreasing = c(T,F), nset=5, nintersects = 100, sets.bar.color=c("#377EB8","#984EA3","#E41A1C","#4DAF4A","#FF7F00"), keep.order = T, sets = c("ANX", "TDM", "TDAH", "TAB","SCZ"))
+```
+
+## **Heatmap**
+
+```{r}
+heatmap_ever_FH <- final_projeto [,c(2,135:139,186:190)]
+
+heatmap_ever_FH$HFControl <- if_else(final_projeto$HFADHD==0 & final_projeto$HFANX==0 & final_projeto$HFBD==0 & final_projeto$HFMDD==0 & final_projeto$HFSCZ==0, 1,0)
+heatmap_ever_FH$everControl <- if_else(final_projeto$everHK==0 & final_projeto$everAnx==0 & final_projeto$everBD==0 & final_projeto$everMDD==0 & final_projeto$everPsych==0, 1,0)
+
+heatmap_ever_FH_ADHD <- subset(heatmap_ever_FH, everHK>0)
+colSums(heatmap_ever_FH_ADHD[,c(7:12)])
+
+heatmap_ever_FH_ANX <- subset(heatmap_ever_FH, everAnx>0)
+colSums(heatmap_ever_FH_ANX[,c(7:12)])
+
+heatmap_ever_FH_BD <- subset(heatmap_ever_FH, everBD>0)
+colSums(heatmap_ever_FH_BD[,c(7:12)])
+
+heatmap_ever_FH_MDD <- subset(heatmap_ever_FH, everMDD>0)
+colSums(heatmap_ever_FH_MDD[,c(7:12)])
+
+heatmap_ever_FH_SCZ <- subset(heatmap_ever_FH, everPsych>0)
+colSums(heatmap_ever_FH_SCZ[,c(7:12)])
+
+heatmap_ever_FH_Control <- subset(heatmap_ever_FH, everControl>0)
+colSums(heatmap_ever_FH_Control[,c(7:12)])
+
+# heatmap_matrix[1,6] <- 892 
+# heatmap_matrix[1,6] <- 0
+heatmap_matrix <- as.matrix(read.xlsx("heatmap_projeto.xlsx",sheet = 1,rowNames = TRUE))
+heatmaply(heatmap_matrix, 
+        dendrogram = "none",
+        xlab = "Crianças", ylab = "Pais/ Mães", 
+        main = "",
+        scale = "none",
+        margins = c(60,100,40,20),
+        grid_color = "white",
+        grid_width = 0.00001,
+        titleX = TRUE,
+        hide_colorbar = FALSE,
+        branches_lwd = 0.1,
+        label_names = c("Pais/Mães", "Crianças:", "Valor"),
+        fontsize_row = 8, fontsize_col = 8,
+        labCol = colnames(heatmap_matrix),
+        labRow = rownames(heatmap_matrix),
+        heatmap_layers = theme(axis.line=element_blank()),
+        cellnote = heatmap_matrix
+        )
+```
+
+## **Balloon Plot (replacing heatmap)**
+
+```{r}
+balloon <- read.xlsx("balloon_projeto_PT.xlsx",sheet = 1)
+
+vars_x_axis <- c(balloon %>% arrange(col) %>% select(mae) %>% distinct())$mae
+names_y_axis <- c(balloon %>% group_by(row) %>% distinct(proband) %>% ungroup() %>% select(proband))$proband
+
+colors <- c("TDAH" = "#E41A1C", "ANX" = "#377EB8", "TAB" = "#4DAF4A", "TDM" = "#984EA3", "SCZ" = "#FF7F00", "Controle" = "#4B5A5D")
+
+(ggplot(balloon, aes(x=factor(col), y=factor(row), color=proband, size=contagem, alpha=contagem)) +
+     geom_point() +    # plot as points
+     geom_text(aes(label=contagem, x=col + 0.35), alpha=1.0, size=3) +   # display the value next to the "balloons"
+     scale_alpha_continuous(range=c(0.2, 0.8)) +
+     scale_size_area(max_size = 8) +
+     scale_x_discrete(breaks=1:length(vars_x_axis), labels=vars_x_axis, position='top') +   # set the labels on the X axis
+     scale_y_discrete(breaks=1:length(names_y_axis), labels=names_y_axis) +                 # set the labels on the Y axis
+     scale_fill_manual(values = colors) +
+     scale_color_manual(values = colors)+
+     theme_bw() +
+     theme(axis.line = element_blank(),            # disable axis lines
+           panel.border = element_blank(),         # disable panel border
+           panel.grid.major.x = element_blank(),   # disable lines in grid on X-axis
+           panel.grid.minor.x = element_blank(),
+           panel.grid.major.y = element_blank(),   # disable lines in grid on Y-axis
+           panel.grid.minor.y = element_blank(),
+           axis.text = element_text(family = "Merriweather", color="gray24", size=10, face="bold"),
+           axis.title = element_text(family = "Lato", color="gray24", size=14, face="bold"),
+           axis.ticks = element_blank(),
+           legend.position = "none"))
+```
+
+```{r}
+balloon <- read.xlsx("balloon_projeto_PT.xlsx",sheet = 2)
+
+vars_x_axis <- c(balloon %>% arrange(col) %>% select(mae) %>% distinct())$mae
+names_y_axis <- c(balloon %>% group_by(row) %>% distinct(proband) %>% ungroup() %>% select(proband))$proband
+
+colors <- c("TDAH" = "#E41A1C", "ANX" = "#377EB8", "TDM" = "#984EA3", "Controle" = "#4B5A5D")
+
+(ggplot(balloon, aes(x=factor(col), y=factor(row), color=proband, size=contagem, alpha=contagem)) +
+     geom_point() +    # plot as points
+     geom_text(aes(label=contagem, x=col + 0.35), alpha=1.0, size=4.5) +   # display the value next to the "balloons"
+     scale_alpha_continuous(range=c(0.2, 0.8)) +
+     scale_size_area(max_size = 8) +
+     scale_x_discrete(breaks=1:length(vars_x_axis), labels=vars_x_axis, position='top') +   # set the labels on the X axis
+     scale_y_discrete(breaks=1:length(names_y_axis), labels=names_y_axis) +                 # set the labels on the Y axis
+     scale_fill_manual(values = colors) +
+     scale_color_manual(values = colors)+
+     theme_bw() +
+     theme(axis.line = element_blank(),            # disable axis lines
+           panel.border = element_blank(),         # disable panel border
+           panel.grid.major.x = element_blank(),   # disable lines in grid on X-axis
+           panel.grid.minor.x = element_blank(),
+           panel.grid.major.y = element_blank(),   # disable lines in grid on Y-axis
+           panel.grid.minor.y = element_blank(),
+           axis.text = element_text(family = "Merriweather", color="gray24", size=10, face="bold"),
+           axis.title = element_text(family = "Lato", color="gray24", size=14, face="bold"),
+           axis.ticks = element_blank(),
+           legend.position = "none"))
+```
+
+## **Tabelas Relatório Parcial**
+
+```{r}
+control_0 <- upset_0
+control_0$sumsMD <- rowSums(upset_0[,c(2:6)])
+control_0 <- control_0[control_0$sumsMD==0,]
+control_1 <- upset_1
+control_1$sumsMD <- rowSums(upset_1[,c(2:6)])
+control_1 <- control_1[control_1$sumsMD==0,]
+control_2 <- upset_2
+control_2$sumsMD <- rowSums(upset_2[,c(2:6)])
+control_2 <- control_2[control_2$sumsMD==0,]
+control_ever <- upset_ever
+control_ever$sumsMD <- rowSums(upset_ever[,c(2:6)])
+control_ever <- control_ever[control_ever$sumsMD==0,]
+
+colSums(upset_0[,c(2:6)])
+colSums(upset_1[,c(2:6)])
+colSums(upset_2[,c(2:6)])
+colSums(upset_ever[,c(2:6)])
+
+#Cálculo de porcentagens
+(colSums(upset_0[,c(2:6)]))*100/1814
+(colSums(upset_1[,c(2:6)]))*100/1814
+(colSums(upset_2[,c(2:6)]))*100/1814
+(colSums(upset_ever[,c(2:6)]))*100/1814
+
+### Seleção de risco
+selection <- readRDS ("./selection.rds")
+ids <- read_sav("ids.sav")
+# keep_1814 <- as.data.frame(final_projeto[,7])
+# colnames(keep_1814) <- "ids"
+
+# Correspondencia ids
+selection <- join_all(list(ids, selection), by = "ident", type = "inner")
+selection_1 <- selection[selection$redcap_event_name=="wave1_arm_1",] #qualquer wave só pra pegar o selection
+
+selection_1814 <- join_all(list(keep_1814, selection_1), by="ids", type = "inner")
+
+table(selection_1814$selection)#seleção de risco (2) ou aleatório (1)
+table(selection_1814$gender)#sexo
+
+
+waves_count <- readxl::read_excel("Count_waves_PT.xlsx")
+factor_waves <- c("Control", "TDAH", "ANX", "TAB", "TDM", "SCZ")
+waves_count$MD <- factor (waves_count$MD, levels = factor_waves)
+
+(waves_count %>% filter(!MD=="Control") %>%
+    ggplot(aes(y=N, x=MD, fill=MD)) + # Coluna de interesse
+    geom_col(width = .7) + # Estética das barras e eixo y com frequência absoluta
+    geom_text(aes(label = N),vjust = -0.3, hjust = 0.5, size = 4, family="Lato", fontface = "bold") + # texto em cima das barras
+    theme_bw()+
+    theme(legend.position = "none", # Formatação dos textos e eixos
+          strip.text = element_text(size=12, color="white", family="Merriweather", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          #plot.title = element_text(family = "Playfair", color="black", size=20, face="bold.italic"),
+          #plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold.italic"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text( family = "Lato", color="black", size = 10, face="bold"),
+          axis.text.x = element_text(angle = 45, hjust = 0.8))+
+     scale_fill_brewer(palette="Set1") + # Cor das barras
+     scale_color_brewer(palette="Set1")+ # Cor do contorno das barras
+     ylim(0,240)+
+     facet_wrap(~Wave, nrow = 1, labeller = labeller (Group = labels))) # Segunda variável separando o gráfico em mais gráficos
+
+total_count <- readxl::read_excel("Count_total_PT.xlsx")
+factor_total <- c("Control", "TDAH", "ANX", "TDM", "TAB", "SCZ")
+total_count$MD <- factor (total_count$MD, levels = factor_total)
+
+(total_count %>% filter(!MD=="Control") %>%
+    ggplot(aes(y=N, x=MD, fill=MD)) + # Coluna de interesse
+    geom_col(width = .7) + # Estética das barras e eixo y com frequência absoluta
+    geom_text(aes(label = N),vjust = -0.3, hjust = 0.5, size = 3.5, family="Lato", fontface = "bold") + # texto em cima das barras
+    theme_bw()+
+    theme(legend.position = "none", # Formatação dos textos e eixos
+          plot.title = element_text(family = "Playfair", color="black", size=20, face="bold.italic"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold.italic"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text( family = "Lato", color="black", size = 10, face="bold"),
+          axis.text.x = element_text(angle = 45, hjust = 0.8))+
+     scale_fill_brewer(palette="Set1") + # Cor das barras
+     scale_color_brewer(palette="Set1") +
+     ylim(0,420))
+```
+
+## **Exportando super controles**
+
+```{r}
+table(final_projeto$groups)
+ids_supercontrols <- final_projeto[final_projeto$groups=="Controle", c(2,192)]
+write_tsv (x = ids_supercontrols, file = "./PRS_Graphs_Novos/ids_supercontrols.txt")
+```
+
+## **TCC/TCC**
+
+```{r}
+########### TCC ##############
+# ADHD
+final_projeto$scADHD <- 0
+final_projeto$scADHD[final_projeto$everADHDC==0 & final_projeto$HFADHD==0] <- "exc"
+final_projeto$scADHD[final_projeto$groups=="Controle"] <- "Controle"
+final_projeto$scADHD[final_projeto$everADHDC==1 & final_projeto$HFADHD==0] <- "Caso único"
+final_projeto$scADHD[final_projeto$everADHDC==0 & final_projeto$HFADHD==1] <- "exc"
+final_projeto$scADHD[final_projeto$everADHDC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$scADHD[final_projeto$everADHDC==1 & final_projeto$HFADHD==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$scADHD)
+
+# Depressão
+final_projeto$scMDD <- 0
+final_projeto$scMDD[final_projeto$everMDDC==0 & final_projeto$HFMDD==0] <- "exc"
+final_projeto$scMDD[final_projeto$groups=="Controle"] <- "Controle"
+final_projeto$scMDD[final_projeto$everMDDC==1 & final_projeto$HFMDD==0] <- "Caso único"
+final_projeto$scMDD[final_projeto$everMDDC==0 & final_projeto$HFMDD==1] <- "exc"
+final_projeto$scMDD[final_projeto$everMDDC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$scMDD[final_projeto$everMDDC==1 & final_projeto$HFMDD==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$scMDD)
+
+# Ansiedade
+final_projeto$scANX <- 0
+final_projeto$scANX[final_projeto$everAnxC==0 & final_projeto$HFANX==0] <- "exc"
+final_projeto$scANX[final_projeto$groups=="Controle"] <- "Controle"
+final_projeto$scANX[final_projeto$everAnxC==1 & final_projeto$HFANX==0] <- "Caso único"
+final_projeto$scANX[final_projeto$everAnxC==0 & final_projeto$HFANX==1] <- "exc"
+final_projeto$scANX[final_projeto$everAnxC==2] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+final_projeto$scANX[final_projeto$everAnxC==1 & final_projeto$HFANX==1] <- "Múltiplos diagnósticos/ Caso com histórico familiar"
+table(final_projeto$scANX)
+
+# Keep for ADHD and MDD
+keep_ADHD_sc <- (final_projeto[!final_projeto$scADHD=="exc",])[,c(1,2)]
+write_tsv(x = keep_ADHD_sc, file = "./TCC/keep_adhd_sc.txt")
+keep_MDD_sc <- (final_projeto[!final_projeto$scMDD=="exc",])[,c(1,2)]
+write_tsv(x = keep_MDD_sc, file = "./TCC/keep_mdd_sc.txt")
+keep_ANX_sc <- (final_projeto[!final_projeto$scANX=="exc",])[,c(1,2)]
+write_tsv(x = keep_ANX_sc, file = "./TCC/keep_anx_sc.txt")
+
+# Arquivo de Fenótipo
+export_TCC <- final_projeto[,c(1,2,203,204,205)]
+export_TCC [export_TCC == "Controle"] <- 1
+export_TCC [export_TCC == "Caso único"] <- 2
+export_TCC [export_TCC == "Múltiplos diagnósticos/ Caso com histórico familiar"] <- 3
+export_TCC [export_TCC == "exc"] <- 0
+
+export_ADHD_TCC <- export_TCC [!export_TCC$scADHD==0,]
+export_ADHD1_TCC <- export_ADHD_TCC
+export_ADHD1_TCC$scADHD[export_ADHD1_TCC$scADHD==3] <- 2
+write_tsv (x = export_ADHD1_TCC, file = paste("./TCC/ADHD1_", nrow(export_ADHD1_TCC), ".txt", sep = ""))
+
+export_MDD_TCC <- export_TCC [!export_TCC$scMDD==0,]
+export_MDD1_TCC <- export_MDD_TCC
+export_MDD1_TCC$scMDD[export_MDD1_TCC$scMDD==3] <- 2
+write_tsv (x = export_MDD1_TCC, file = paste("./TCC/MDD1_", nrow(export_MDD1_TCC), ".txt", sep = ""))
+
+
+export_ANX_TCC <- export_TCC [!export_TCC$scANX==0,]
+export_ANX1_TCC <- export_ANX_TCC
+export_ANX1_TCC$scANX[export_ANX1_TCC$scANX==3] <- 2
+write_tsv (x = export_ANX1_TCC, file = paste("./TCC/ANX1_", nrow(export_ANX1_TCC), ".txt", sep = ""))
+
+filenames_TCC <- as.data.frame(list.files(path = "./TCC", all.files = TRUE))[c(-1,-2),]
+filenames_TCC <- as.data.frame(filenames_TCC)
+write_tsv (x = filenames_TCC, file = "./TCC/filenames_TCC.txt")
+
+export_TCC_cc <- export_TCC
+export_TCC_cc [export_TCC_cc == 0] <- -9
+export_TCC_cc [export_TCC_cc == 1] <- 0
+export_TCC_cc [export_TCC_cc == 2] <- 1
+export_TCC_cc [export_TCC_cc == 3] <- 1
+export_TCC_cc$FID <- 0
+write_tsv (x = export_TCC_cc, file = "./TCC/export_TCC.txt")
+```
+
+# **Gráficos PRSice
 
 ## **Importando e Manipulando Fenótipo**
 
