@@ -1,0 +1,467 @@
+---
+title: "Gráficos P"
+author:
+  - name: Lucas Toshio Ito
+    orcid: 0000-0001-9713-8687
+    email: lucas.toshio@unifeS.br
+    affiliations:
+      - name: Universidade Federal de São Paulo (UNIFES) 
+toc: true
+toc-location: left
+toc-title: Contents
+number-sections: false
+highlight-style: pygments
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    code-link: true
+    df-print: kable
+    embed-resources: true
+    # include-in-header: 
+    #   - ./back-to-top.html
+    #   - ./progressbar.html
+  pdf:
+    geometry:
+      - top=10mm
+      - left=10mm
+  docx: default
+theme:
+  light: flatly
+  dark: darkly
+css: styles.css
+---
+
+::: {style="font-size: 0.9em"}
+<a href="mailto:lucas.toshio@unifeS.br">
+   <San class="fa-stack fa-sm">
+       <i class="fa fa-circle fa-stack-2x"></i>
+       <i class="fa fa-envelope fa-stack-1x fa-inverse"></i>
+   </San>
+</a> 
+<a href="https://twitter.com/lcstoshio">
+   <San class="fa-stack fa-sm">
+       <i class="fa fa-circle fa-stack-2x"></i>
+       <i class="fa-brands fa-twitter fa-stack-1x fa-inverse"></i>
+   </San>
+</a>
+<a href="https://github.com/lcstoshio">
+   <San class="fa-stack fa-sm">
+       <i class="fa fa-circle fa-stack-2x"></i>
+       <i class="fa-brands fa-github fa-stack-1x fa-inverse"></i>
+   </San>
+</a>
+<a href="http://linkedin.com/in/lucas-toshio-ito-5b8a96199">
+   <San class="fa-stack fa-sm">
+       <i class="fa fa-circle fa-stack-2x"></i>
+       <i class="fa-brands fa-linkedin fa-stack-1x fa-inverse"></i>
+   </San>
+</a>
+
+::: {.content-hidden}
+{{< fa brands twitter >}}
+:::
+
+```{r}
+#| include: FALSE
+Sys.setlocale("LC_TIME", "C")
+```
+
+**Date:** `r format(Sys.time(), '%B %d, %Y')`
+:::
+
+```{r}
+#| label = "set options",
+#| include = FALSE
+options(width = 700, height= 700)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%", fig.showtext = TRUE, retina = 1)
+```
+
+<font size = "2">
+
+```{r}
+#| message = FALSE,
+#| warning = FALSE
+# Pacotes
+library(tidyverse)
+library(ggpubr)
+library(RColorBrewer)
+library (forcats)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(ggpubr)
+library(showtext)
+library(sysfonts)
+font_add_google("Playfair DiSlay", "Playfair") 
+font_add_google("Bangers", "Bangers")
+font_add_google("Merriweather", "Merriweather")
+font_add_google("Lato", "Lato")
+showtext_auto()
+library(plyr)
+library(naniar)
+#sysfonts::font_families_google()
+```
+
+```{r}
+# Preparação e manipulação do banco de dados
+###
+
+# Importando Banco de Dados de todos centros
+DataS <- read.csv ("DataStudy_DATA_S.csv")
+DataBA <- read.csv ("DataStudy_DATA_B.csv")
+DataGO <- read.csv ("DataStudy_DATA_G.csv")
+DataCE <- read.csv ("DataStudy_DATA_C.csv")
+
+# Juntando todos os bancos em um único dataframe
+Data <- rbind(DataS, DataB, DataG, DataC)
+Data_ori <- Data
+```
+
+------------------------------------------------------------------------
+
+# **Missing data**
+
+```{r}
+# Freq missing data by column
+vis_miss(Data_ori)
+```
+
+------------------------------------------------------------------------
+
+# **Frequência caso x controle**
+
+```{r}
+bar_pizza <- list()
+for (i in 1:length(Data_div)) {
+  bar <- Data_div[[i]] %>%
+    ggplot(aes(x = Group, fill = Group)) + 
+    geom_bar(aes(y = ..count..), stat="count", position = 'dodge', width = .7) +
+    geom_text(aes(label = ..count..), stat= "count", vjust = -0.3, hjust = 0.4, size = 3, family="Lato", fontface = "bold") +
+    theme_bw()+
+    theme(legend.position = "none",
+          plot.title = element_text(family = "Playfair", color="black", size=20, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"))+
+    scale_fill_manual(values=c(Controle = "#579B9A", Caso = "#F5B273")) + 
+    scale_color_manual(values=c(Controle = "#579B9A", Caso = "#F5B273"))
+  
+  pizza <- Data_div[[i]] %>% 
+    dplyr::mutate(n_all = n()) %>% 
+    group_by(Group) %>% 
+    dplyr::summarise(N = n() / unique(n_all)) %>% 
+    ggplot(aes(x = "", y = N, fill = Group)) +
+    geom_col(width = 1) +
+    geom_text(aes(label = paste0(round (N*100,1), "%")), position = position_stack(vjust = 0.5),size=3, color="gray4", fontface="bold") +
+    coord_polar(theta = "y", start = 0)+ 
+    theme_void()+
+    scale_fill_manual(values=c(Controle = "#579B9A", Caso = "#F5B273")) + 
+    scale_color_manual(values=c(Controle = "#579B9A", Caso = "#F5B273"))+
+    theme(legend.title = element_text(size=12, color="Black", family="Merriweather", face="bold"),
+          plot.title = element_text(family = "Playfair", color="black", size=20, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 6, face="bold"),
+          axis.ticks = element_blank(),
+          panel.grid = element_blank(),
+          axis.text.x = element_blank())
+  
+  bar_pizza[[i]] <- ggarrange(bar, pizza)
+  print(bar_pizza[[i]])
+}
+```
+
+------------------------------------------------------------------------
+
+# **Estados de nascimento**
+
+```{r}
+states_geral <- list()
+for (i in 1:length(Data_div)) {
+  States <- data.frame(state=unlist(States, use.names = FALSE))
+  state <- (States %>%
+    ggplot(aes(x = state)) + 
+    geom_bar(aes(y = ..count.., fill = factor(..x..)), stat="count", position = 'dodge', width = .7)+
+    geom_text(aes(label = ..count..), stat= "count", vjust = -0.4, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold") +
+    theme_bw()+
+    theme(legend.position = "none", 
+          strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 10, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 8, face="bold"),
+          axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))+
+    scale_y_continuous(expand = expansion(c(0, 0.3))) +
+    facet_wrap(~label, nrow =3))
+  
+  print(state)
+  states_geral[[i]] <- state
+}
+```
+
+------------------------------------------------------------------------
+
+# **Estados de nascimento: caso/ controle**
+
+```{r}
+states_cc <- list()
+for (i in 1:length(Data_div)) {
+  state_1 <- (Data_div[[i]] %>%
+    ggplot(aes(x = State_pt)) + 
+    geom_bar(aes(y = ..count.., fill = factor(..x..)), stat="count", position = 'dodge', width = .7)+
+    geom_text(aes(label = ..count..), stat= "count", vjust = -0.4, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold") +
+    theme_bw()+
+    theme(legend.position = "none", 
+          strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+          axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))+
+    scale_y_continuous(expand = expansion(c(0, 0.3))) +
+    facet_wrap(~Group, ncol =1, labeller = labeller (Group = labels[[i]])))
+    
+  state_2 <- (Data_div[[i]] %>%
+    ggplot(aes(x = State_ma )) + 
+    geom_bar(aes(y = ..count.., fill = factor(..x..)), stat="count", position = 'dodge', width = .7)+
+    geom_text(aes(label = ..count..), stat= "count", vjust = -0.4, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold") +
+    theme_bw()+
+    theme(legend.position = "none",
+          strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+          axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))+
+    scale_y_continuous(expand = expansion(c(0, 0.3))) +
+    facet_wrap(~Group, ncol =1, labeller = labeller (Group = labels[[i]])))
+  
+  state_3 <- (Data_div[[i]] %>%
+    ggplot(aes(x = State_pa )) + 
+    geom_bar(aes(y = ..count.., fill = factor(..x..)), stat="count", position = 'dodge', width = .7)+
+    geom_text(aes(label = ..count..), stat= "count", vjust = -0.4, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold") +
+    theme_bw()+
+    theme(legend.position = "none", 
+          strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+          axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))+
+    scale_y_continuous(expand = expansion(c(0, 0.3))) +
+    facet_wrap(~Group, ncol =1, labeller = labeller (Group = labels[[i]])))
+  
+  states_cc[[i]] <- list(state_1, state_2, state_3)
+}
+```
+
+------------------------------------------------------------------------
+
+# **Sexo**
+
+```{r}
+sex_list <- list()
+for (i in 1:length(Data_div)) {
+  sex <- Data_div[[i]] %>% drop_na(Sex) %>% 
+    ggplot(aes(Sex, group = Group)) + 
+    geom_bar(aes(y = ..prop.., fill = factor(..x..)), stat="count", position = 'dodge', width = .7) +
+    geom_text(aes( label = scales::percent(..prop.., accuracy=0.1), y= ..prop.. ), stat= "count", vjust = -0.5, hjust = 0.4, size = 3, family="Lato", fontface = "bold") +
+    scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+    theme_bw()+
+    theme(legend.position = "none",
+        strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+        strip.background = element_rect (fill="gray24"),
+        plot.title = element_text(family = "Playfair", color="black", size=20, face="bold"),
+        plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+        axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+        axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"))+
+    scale_x_discrete(drop=FALSE) +
+    scale_fill_brewer(palette="Set1") + 
+    facet_wrap(~Group, ncol =2, labeller = labeller (Group = labels[[i]]))
+  print(sex)
+  
+  test_sex <- Data_div[[i]]
+  chisq_sex <- (chisq.test(table(test_sex$Sex, test_sex$Group)))
+  print(chisq_sex)
+  
+  sex_list[[i]] <- sex
+}
+```
+
+------------------------------------------------------------------------
+
+# **Idade x Sexo**
+
+```{r}
+age_sex_list <- list()
+for (i in 1:length(Data_div)) {
+  age_sex <- Data_div[[i]] %>% drop_na(Sex) %>% 
+    ggplot(aes(x = Sex, y = Age, color=Sex)) +
+    geom_boxplot(aes(color = Sex), position = position_dodge(width = 0.6), show.legend = FALSE) +
+    geom_jitter(aes(color = Sex),size=1 ,alpha = 0.6, show.legend = FALSE, position = position_jitterdodge(jitter.width=1, dodge.width = 0.6)) +
+    theme_bw()+
+    theme(legend.position = "none",
+          strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          axis.ticks.x = element_blank(),
+          plot.title = element_text(family = "Playfair", color="black", size=20, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"))+
+    scale_fill_brewer(palette="Set1")+ 
+    scale_color_brewer(palette="Set1")+
+    facet_wrap(~Group, ncol =2, labeller = labeller (Group = labels[[i]]), scales = "free_x")
+  print(age_sex)
+  
+  test_age <- Data_div[[i]]
+  ttest_age <- t.test(Age~Group,
+       alternative="two.sided", #teste bilateral
+       conf.level=0.95, #nível de sig de 5%
+       var.equal=TRUE, #variancias iguais
+       data=test_age)
+  print(ttest_age)
+
+  age_sex_list[[i]] <- age_sex
+}
+```
+
+------------------------------------------------------------------------
+
+# **Nível de Escolaridade x Sexo**
+
+```{r}
+escolaridade_list <- list()
+for (i in 1:length(Data_div)) {
+  escolaridade <- Data_div[[i]] %>% drop_na(Education) %>% drop_na(Sex) %>% 
+    ggplot(aes(Education, group = Sex)) + 
+    geom_bar(aes(y = ..prop.., fill = Sex), stat="count", position = 'dodge', width = .8) +
+    geom_text(aes( label = scales::percent(..prop.., accuracy=0.1), y= ..prop.. ), stat= "count", vjust = 0.5, hjust = -0.1, size = 2.2, family="Lato", fontface = "bold", position = position_dodge(width = .8)) +
+    scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+    theme_bw()+
+    theme(strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+          strip.background = element_rect (fill="gray24"),
+          axis.text.x=element_blank(), 
+          axis.ticks.x = element_blank(),
+          plot.title = element_text(family = "Playfair", color="black", size=14, face="bold"),
+          plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+          axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+          axis.text = element_text(family = "Lato", color="black", size = 9, face="bold"))+
+    scale_x_discrete(drop=FALSE) +
+    coord_flip() +
+    scale_fill_brewer(palette="Set1") + 
+    facet_wrap(~Group, ncol =2, labeller = labeller (Group = labels[[i]]))
+  print(escolaridade)
+
+  test_education <- Data_div[[i]]
+  chisq_education <- chisq.test(table(test_education$Education, test_education$Group))
+  print(chisq_education)
+  
+  escolaridade_list[[i]] <- escolaridade
+}
+```
+
+------------------------------------------------------------------------
+
+# **Etnia/ Cor de Pele x Sexo**
+
+```{r}
+etnia_list <- list()
+for (i in 1:length(Data_div)) {
+  etnia <- Data_div[[i]] %>% drop_na(Ethnicity) %>% drop_na(Sex) %>% 
+    ggplot(aes(Ethnicity, group = Sex)) + 
+    geom_bar(aes(y = ..prop.., fill = Sex), stat="count", position = 'dodge', width = 0.7) +
+    geom_text(aes( label = scales::percent(..prop.., accuracy=0.1), y= ..prop.. ), stat= "count", vjust = -0.5, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold", position = position_dodge(width = 0.7)) +
+    scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+    theme_bw()+
+    theme(strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+        strip.background = element_rect (fill="gray24"),
+        plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+        plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+        axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+        axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"))+
+    scale_x_discrete(drop=FALSE) +
+    scale_fill_brewer(palette="Set1") + 
+    facet_wrap(~Group, nrow =2, labeller = labeller (Group = labels[[i]]))
+  print(etnia)
+  
+  test_etnia <- Data_div[[i]]
+  chisq_etnia <- chisq.test(table(test_etnia$Ethnicity, test_etnia$Group))
+  print(chisq_etnia)
+  
+  etnia_list[[i]] <- etnia
+}
+```
+
+------------------------------------------------------------------------
+
+# **Status Socioeconômico (Pessoal) x Sexo**
+
+```{r}
+ses_pt_list <- list()
+for (i in 1:length(Data_div)) {
+  ses_pt <- Data_div[[i]] %>% drop_na(Ses_pt) %>% drop_na(Sex) %>%  
+    ggplot(aes(Ses_pt, group = Sex)) + 
+    geom_bar(aes(y = ..prop.., fill = Sex), stat="count", position = 'dodge', width = .7) +
+    geom_text(aes( label = scales::percent(..prop.., accuracy=0.1), y= ..prop.. ), stat= "count", vjust = -0.5, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold", position = position_dodge(width = 0.7)) +
+    scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+    theme_bw()+
+    theme(strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+        strip.background = element_rect (fill="gray24"),
+        plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+        plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+        axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+        axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+        axis.text.x = element_text(family = "Lato", color="black", size = 9, face="bold"))+
+    scale_x_discrete(drop=FALSE) +
+    scale_fill_brewer(palette="Set1") + 
+    facet_wrap(~Group, nrow =2, labeller = labeller (Group = labels[[i]]))
+  print(ses_pt)
+  
+  test_ses_pt <- Data_div[[i]]
+  chisq_ses_pt <- chisq.test(table(test_ses_pt$Ses_pt, test_ses_pt$Group))
+  print(chisq_ses_pt)
+  
+  ses_pt_list[[i]] <- ses_pt
+}
+```
+
+------------------------------------------------------------------------
+
+# **Status Socioeconômico (Familiar) x Sexo**
+
+```{r}
+ses_fam_list <- list()
+for (i in 1:length(Data_div)) {
+  ses_fam <- Data_div[[i]] %>% drop_na(Ses_fam) %>% drop_na(Sex) %>%  
+    ggplot(aes(Ses_fam, group = Sex)) + 
+    geom_bar(aes(y = ..prop.., fill = Sex), stat="count", position = 'dodge', width = .7) +
+    geom_text(aes( label = scales::percent(..prop.., accuracy=0.1), y= ..prop.. ), stat= "count", vjust = -0.5, hjust = 0.5, size = 2.2, family="Lato", fontface = "bold", position = position_dodge(width = 0.7)) +
+    scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+    theme_bw()+
+    theme(strip.text = element_text(size=12, color="white", family="Lato", face="bold"), 
+        strip.background = element_rect (fill="gray24"),
+        plot.title = element_text(family = "Playfair", color="black", size=16, face="bold"),
+        plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold"),
+        axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+        axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+        axis.text.x = element_text(family = "Lato", color="black", size = 9, face="bold"))+
+    scale_x_discrete(drop=FALSE) +
+    scale_fill_brewer(palette="Set1") + 
+    facet_wrap(~Group, nrow =2, labeller = labeller (Group = labels[[i]]))
+  print(ses_fam)
+  
+  test_ses_fam <- Data_div[[i]]
+  chisq_ses_fam <- chisq.test(table(test_ses_fam$Ses_fam, test_ses_fam$Group))
+  print(chisq_ses_fam)
+  
+  ses_fam_list[[i]] <- ses_fam
+}
+```
+
+</font>
