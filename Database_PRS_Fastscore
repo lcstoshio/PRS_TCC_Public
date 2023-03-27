@@ -1,0 +1,143 @@
+######## Download Sumstats ########
+mkdir AD | wget -c https://ctg.cncr.nl/documents/p1651/AD_sumstats_Jansenetal_2019sept.txt.gz -O ./AD/2019_GWAS_AD.gz
+# mkdir ADHD | wget -c https://ipsych.dk/fileadmin/iPSYCH/PGC/ADHD_meta_Jan2022_iPSYCH1_iPSYCH2_deCODE_PGC.meta_2.zip # tem mais de 1 arquivo nesse zip, então é melhor baixar, dezipar e renomear
+mkdir AN | wget -c https://figshare.com/ndownloader/files/28169271 -O ./AN/2019_GWAS_AN.vcf.gz
+mkdir ANX | wget -c https://figshare.com/ndownloader/files/28570812 -O ./ANX/2016_GWAS_ANX.gz
+mkdir ASD | wget -c https://figshare.com/ndownloader/files/28169292 -O ./ASD/2019_GWAS_ASD.gz
+mkdir BD | wget -c https://figshare.com/ndownloader/files/26603681 -O ./BD/2021_GWAS_BD.vcf.tsv.gz
+mkdir CD | wget -c https://figshare.com/ndownloader/files/28169382 -O ./CD/2019_GWAS_CD.gz
+mkdir MDD | wget https://datashare.ed.ac.uk/bitstream/handle/10283/3203/PGC_UKB_depression_genome-wide.txt?sequence=3&isAllowed=y
+mkdir OCD | wget -c https://figshare.com/ndownloader/files/28169544 -O ./OCD/2018_GWAS_OCD.gz
+mkdir PTSD | wget -c https://figshare.com/ndownloader/files/28169634 -O ./PTSD/2019_GWAS_PTSD.gz
+mkdir SCZ | wget -c https://figshare.com/ndownloader/files/34517861 -O ./SCZ/2022_GWAS_SCZ.vcf.tsv.gz
+mkdir TS | wget -c https://figshare.com/ndownloader/files/28169940 -O ./TS/2019_GWAS_TS.gz
+
+# Zipping and renaming MDD sumstats
+gzip -c ./MDD/'PGC_UKB_depression_genome-wide.txt?sequence=3' > ./MDD/2019_GWAS_MDD.gz
+rm ./MDD/'PGC_UKB_depression_genome-wide.txt?sequence=3' ./MDD/wget-log
+
+# Removing comment lines from vcf file
+gunzip -c ./AN/2019_GWAS_AN.vcf.gz |\
+egrep -v "^##" |\
+gzip > ./AN/2019_GWAS_AN.gz
+rm ./AN/2019_GWAS_AN.vcf.gz
+
+gunzip -c ./BD/2021_GWAS_BD.vcf.tsv.gz |\
+egrep -v "^##" |\
+gzip > ./BD/2021_GWAS_BD.gz
+rm ./BD/2021_GWAS_BD.vcf.tsv.gz
+
+gunzip -c ./SCZ/2022_GWAS_SCZ.vcf.tsv.gz |\
+egrep -v "^##" |\
+gzip > ./SCZ/2022_GWAS_SCZ.gz
+rm ./SCZ/2022_GWAS_SCZ.vcf.tsv.gz
+
+# Download .bed bim fam originals from the 2190 children
+wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1OnndTwLZL6fDP95uCzCyMR9fCVOlxMz3' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1OnndTwLZL6fDP95uCzCyMR9fCVOlxMz3" -O Data.zip && rm -rf /tmp/cookies.txt
+unzip Data.zip
+
+######## Target Data ########
+# Download PLINK 1.9
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20220402.zip
+unzip plink_linux_x86_64_20220402.zip
+rm toy* plink_linux_x86_64_20220402.zip
+
+./plink --bfile Data --not-chr 0,23-26 --make-bed --keep-allele-order --out Data_CHR
+./plink --bfile Data_CHR --list-duplicate-vars suppress-first --out Data_del
+./plink --bfile Data_CHR --exclude Data_del.dupvar  --make-bed --out Data_Final
+./plink --bfile Data_Final --pca 10 --out Data_Final_pca10
+
+######## PRSice ########
+# Download PRSice-2
+wget https://github.com/choishingwan/PRSice/releases/download/2.3.5/PRSice_linux.zip
+unzip PRSice_linux.zip
+rm TOY* PRSice_linux.zip
+
+# AD rs na coluna 5 e chrposa1a2 em 0
+gunzip -c ./AD/2019_GWAS_AD.gz | head -10
+mkdir ./AD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./AD/2019_GWAS_AD.gz --out ./AD/Fastscore/PRS_Score_AD --chr 1 --A1 3 --A2 4 --stat 12 --beta --snp 5 --bp 2 --pvalue 7 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress --extract ./AD/PRS_Score_AD.valid
+
+# ADHD rs
+gunzip -c ./ADHD/2023_GWAS_ADHD.gz | head -10
+mkdir ./ADHD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./ADHD/2023_GWAS_ADHD.gz --out ./ADHD/Fastscore/PRS_Score_ADHD --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress --extract ./ADHD/Fastscore/PRS_Score_ADHD.valid
+
+# AN rs
+gunzip -c ./AN/2019_GWAS_AN.gz | head -10
+mkdir ./AN/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./AN/2019_GWAS_AN.gz --out ./AN/Fastscore/PRS_Score_AN --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress --extract ./AN/PRS_Score_AN.valid
+
+# ANX rs
+gunzip -c ./ANX/2016_GWAS_ANX.gz | head -10
+mkdir ./ANX/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./ANX/2016_GWAS_ANX.gz --out ./ANX/Fastscore/PRS_Score_ANX --chr 1 --A1 3 --A2 4 --stat 6 --beta --snp 0 --bp 2 --pvalue 8 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress 
+
+# ASD rs
+gunzip -c ./ASD/2019_GWAS_ASD.gz | head -10
+mkdir ./ASD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./ASD/2019_GWAS_ASD.gz --out ./ASD/Fastscore/PRS_Score_ASD --chr 0 --A1 3 --A2 4 --stat 6 --or --snp 1 --bp 2 --pvalue 8 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# BD rs
+gunzip -c ./BD/2021_GWAS_BD.gz | head -10
+mkdir ./BD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./BD/2021_GWAS_BD.gz --out ./BD/Fastscore/PRS_Score_BD --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# CD rs
+gunzip -c ./CD/2019_GWAS_CD.gz | head -10
+mkdir ./CD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./CD/2019_GWAS_CD.gz --out ./CD/Fastscore/PRS_Score_CD --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# MDD rs nochr and nobp
+gunzip -c ./MDD/2019_GWAS_MDD.gz | head -10
+mkdir ./MDD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./MDD/2019_GWAS_MDD.gz --out ./MDD/Fastscore/PRS_Score_MDD --A1 1 --A2 2 --stat 4 --beta --snp 0 --pvalue 6 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# OCD rs
+gunzip -c ./OCD/2018_GWAS_OCD.gz | head -10
+mkdir ./OCD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./OCD/2018_GWAS_OCD.gz --out ./OCD/Fastscore/PRS_Score_OCD --chr 0 --A1 3 --A2 4 --stat 6 --or --snp 1 --bp 2 --pvalue 8 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# PTSD rs
+gunzip -c ./PTSD/2019_GWAS_PTSD.gz | head -10
+mkdir ./PTSD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./PTSD/2019_GWAS_PTSD.gz --out ./PTSD/Fastscore/PRS_Score_PTSD --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress --extract ./PTSD/PRS_Score_PTSD.valid
+
+# SCZ rs
+gunzip -c ./SCZ/2022_GWAS_SCZ.gz | head -10
+mkdir ./SCZ/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./SCZ/2022_GWAS_SCZ.gz --out ./SCZ/Fastscore/PRS_Score_SCZ --chr 0 --A1 3 --A2 4 --stat 8 --beta --snp 1 --bp 2 --pvalue 10 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# TS rs
+gunzip -c ./TS/2019_GWAS_TS.gz | head -10
+mkdir ./TS/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./TS/2019_GWAS_TS.gz --out ./TS/Fastscore/PRS_Score_TS --chr 1 --A1 3 --A2 4 --stat 6 --or --snp 0 --bp 2 --pvalue 8 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+
+
+### EXTRAS OUTSIDE FROM PGC
+
+# Height (HEIGHT)
+gunzip -c ./HEIGHT/2022_GWAS_HEIGHT.gz | head -10
+mkdir ./HEIGHT/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./HEIGHT/2022_GWAS_HEIGHT.gz --out ./HEIGHT/Fastscore/PRS_Score_HEIGHT --chr 2 --A1 4 --A2 5 --stat 7 --beta --snp 1 --bp 3 --pvalue 9 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# Suicide Attempt (DA)
+gunzip -c ./SA/2021_GWAS_SA.gz | head -10
+mkdir ./SA/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./SA/2021_GWAS_SA.gz --out ./SA/Fastscore/PRS_Score_SA --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# Suicide Death (SD)
+gunzip -c ./SD/2020_GWAS_SD.gz | head -10
+mkdir ./SD/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./SD/2020_GWAS_SD.gz --out ./SD/Fastscore/PRS_Score_SD --chr 0 --A1 4 --A2 5 --stat 7 --beta --snp 1 --bp 2 --pvalue 11 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress --extract ./SD/PRS_Score_SD.valid
+
+# Subjective Well Being (SWB)
+gunzip -c ./SWB/2016_GWAS_SWB.gz | head -10
+mkdir ./SWB/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./SWB/2016_GWAS_SWB.gz --out ./SWB/Fastscore/PRS_Score_SWB --chr 1 --A1 3 --A2 4 --stat 6 --beta --snp 0 --bp 2 --pvalue 8 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
+
+# Educational Attainment (EA)
+gunzip -c ./EA/2022_GWAS_EA.gz | head -10
+mkdir ./EA/Fastscore
+Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./EA/2022_GWAS_EA.gz --out ./EA/Fastscore/PRS_Score_EA --chr 1 --A1 3 --A2 4 --stat 6 --beta --snp 0 --bp 2 --pvalue 9 --index --all-score --fastscore --bar-levels 5e-08,5e-07,5e-06,5e-05,0.0005,0.005,0.01,0.05,0.1,0.2,0.3,0.4,0.5,1 --thread 4 --print-snp --no-regress
