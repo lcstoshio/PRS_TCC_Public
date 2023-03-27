@@ -1,0 +1,332 @@
+---
+title: "Gráficos de PRS do Projeto"
+author: "Lucas Toshio Ito"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  rmdformats::readthedown:
+  highlight: pygments
+---
+
+# **Organização de Fenótipo e Resultados do PRSice**
+
+```{r set options, include=FALSE}
+options(width = 700)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, out.width = "100%",
+                      fig.showtext = TRUE, retina = 1)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Pacotes
+library (ggplot2) #graficos
+library (plyr) #join_all, ddply
+library (dplyr) #mutate
+library(gridExtra) #grid.arrange
+library(fs) #dir_ls
+library(purrr)
+library(magrittr) #%>% 
+library(tibble) #add_column
+library(ggpubr) #ggarrange
+library(ggdist) #violin
+library(showtext)
+library(sysfonts)
+library(rstatix)
+font_add_google("Playfair Display", "Playfair") ## name of Google font, name that will be used in R
+font_add_google("Bangers", "Bangers")
+font_add_google("Merriweather", "Merriweather")
+font_add_google("Lato", "Lato")
+showtext_auto()
+library(fmsb)
+```
+
+## **Importando e Manipulando Fenótipo**
+
+O arquivo de fenótipo que foi utilizado na função do PRSice, em que é necessário categorizar os valores ainda.
+
+```{r}
+# Importando arquivo de fenótipo, menos FID
+export <- select(read.table ("./TCC/export_projeto.txt", header = T), c(-1, -3, -5, -8))
+
+# Ordenando as colunas para ficar na mesma ordem dos arquvos (alfabético - ADHD, ANX. BD, Geral, MDD, SCZ)
+export <- export[,(c("IID","groupsADHD", "groupsANX", "groupsMDD"))]
+
+# Selecionar somente as colunas com "groups" para trocar os valores nelas 
+#(1, 2, 3, 4) -> (Controle, Caso Único, Múltiplos Diagnósticos/ Caso com Histórico Familiar, Somente Historico Familiar)
+# export$groupsBD[export$groupsBD==4] <- "Caso"
+# export$groupsSCZ[export$groupsSCZ==4] <- "Caso"
+
+col <- grep("^groups*", (colnames(export)))
+export[col] <- lapply(export[col], gsub, pattern = 1, replacement = "Controle")
+export[col] <- lapply(export[col], gsub, pattern = 2, replacement = "Caso")
+export[col] <- lapply(export[col], gsub, pattern = 3, replacement = "Múltiplos Diagnósticos/ Caso com Histórico Familiar")
+export[col] <- lapply(export[col], factor, levels = c("Controle", "Caso", "Múltiplos Diagnósticos/ Caso com Histórico Familiar"))
+```
+
+## **Importando e Manipulando arquivo dos componentes principais (PCA)**
+
+O arquivo dos componente principais que foi gerado pelo PLINK 1.9, onde utilizamos 4 componentes principais.Nessa tabela não tem header então é necessário renomear as colunas
+
+```{r}
+# Procura no diretório todos os arquivo com o padrão .all_score, e retorna o nome desses arquivos
+file_paths_eigenvec <- fs::dir_ls ("TCC", recurse = TRUE, glob = c("*_sc_pca4.eigenvec"))
+# Procura o caminho usado na função anterior e salva os arquivos em uma nova lista depois de juntar com o arquivo de pca
+file_contents_eigenvec <- file_paths_eigenvec %>%
+  map(function(path) {
+    as.data.frame(read.table(path, header = F))[,-1]
+     })
+
+for (i in 1:length(file_contents_eigenvec)) { # i = 1:6 (vai realizar isso em cada arquivo da lista)
+     colnames(file_contents_eigenvec[[i]]) <- c("IID", paste0("PC", 1:4))
+}
+```
+
+## **Importando e Manipulando resultados do PRSice**
+
+Importando os scores dos resultados do PRSice. Para evitar de ficar procurando arquivo por arquivo individualmente utilizei uma função que procura o caminho dos arquivos baseado em um padrão. Depois disso cada um dos arquivos de scores foi juntado com o arquivo de pca para que possamos fazer a correção.  
+
+Nessa etapa também extrai os arquivos com o sumário de cada p-valor (não é necessário para a análise, mas é bom para ver)
+
+```{r}
+# Importando os arquivos com os escores e o sumário de cada p-valor
+
+# Procura no diretório todos os arquivo com o padrão .all_score, e retorna o nome desses arquivos
+file_paths_allscore <- fs::dir_ls ("TCC", recurse = TRUE, glob = c("*_sc.best"))
+# Procura o caminho usado na função anterior e salva os arquivos em uma nova lista depois de juntar com o arquivo de pca
+file_contents_allscore <- file_paths_allscore %>%
+  map(function(path) {
+    as.data.frame(read.table(path, header = T))[-3]
+     })
+
+for (i in 1:length(file_contents_allscore)) { # i = 1:6 (vai realizar isso em cada arquivo da lista)
+     file_contents_allscore[[i]] <- join_all(list(file_contents_allscore[[i]], file_contents_eigenvec[[i]]), by="IID", type="inner")
+}
+#list2env(file_contents_allscore, envir = .GlobalEnv) #Para transformar lista em objetos individuais
+
+# Procura no diretório todos os arquivo com o padrão .prsice, e retorna o nome desses arquivos
+file_paths_prsice <- fs::dir_ls ("TCC", recurse = TRUE, glob = c("*_sc.prsice"))
+# Procura o caminho usado na função anterior e salva os arquivos em uma nova lista
+file_contents_prsice <- file_paths_prsice %>%
+  map(function(path) {
+          read.table(path, header = T)
+     })
+#list2env(file_contents_prsice, envir = .GlobalEnv) #Para transformar lista em objetos individuais
+```
+
+## **Resíduos do PRS**
+
+Pega os componentes principais e os escores para conseguir os resíduos, que são os scores corrigidos com os pcs. No final ficamos com a lista final já com IID, scores corrigidos e fenótipo
+
+```{r}
+# Não houve resultados para o p-valor e10-8 nessa tabela, então foi necessário criar uma coluna vazia no seu lugar
+# file_contents_allscore[[2]] <- add_column(.data = file_contents_allscore[[2]], Pt_1e.08 = 0 , .after = "IID")
+
+# Selecionando o nome das colunas com os escores
+# Pode usar de qualquer tabela pois são iguais os nomes
+depVarList = setdiff(colnames(file_contents_allscore[[1]]), c("FID", "IID", "PC1", "PC2", "PC3", "PC4"))
+
+# for loop para exportar resíduos de cada escore
+my_list <- list() # criar lista vazia
+for (i in 1:length(file_contents_allscore)){ # i = 1:6 (vai realizar isso em cada arquivo da lista)
+  data <- file_contents_allscore[[i]] # pega a tabela com os escores + pca
+  allModels <- lapply(depVarList, function(x){ # apply do modelo linear (scores + pcs) na tabela anterior
+  lm(formula= paste0("`", x, "` ~ PC1 + PC2 + PC3 + PC4"), 
+    data= data, na.action = na.omit)
+})
+  names(allModels) = depVarList # renomeando os items da lista
+  allResiduals = data %>% select(-FID, -PC1, -PC2, -PC3, -PC4) # selecionando apenas os scores + iid
+  allResiduals[-1] = sapply(2:ncol(allResiduals), function(x){ # tirando os resíduos e substituindo os scores
+  residuals = allResiduals[,x]
+  residuals[!is.na(residuals)] = allModels[[x-1]]$residuals
+})
+  allResiduals <- join_all(list(allResiduals, export), by="IID", type="inner") # juntando resíduos com o fenótipo para nossa lista final
+  my_list[[i]] <- allResiduals # adicionar resultados como item na lista e processo repete 6 vezes
+}
+names(my_list) = names(file_contents_allscore) # renomear itens da lista
+```
+
+## **Cálculo de média**
+
+Para o cálculo da média é necessário fazer o cálculo de cada grupo individualmente e para cada p-valor. Essa parte da mais trabalho porque existem separações de grupo diferentes para cada arquivo. No fim ficamos com uma lista completa com as médias de cada grupo em cada p-valor.
+
+```{r}
+# Novo objeto com sequencia de grupos que estamos usando (necessário por causa da ordem)
+groups <- c("groupsADHD", "groupsANX", "groupsMDD")
+
+# Categorias que estamos dividindo os grupos na ordem que escolhemos no bind
+# Precisa porque o código so exporta as médias, mas não fala oq é do que
+categ <- c("Controle", "Caso", "Múltiplos Diagnósticos/ Caso com Histórico Familiar")
+allMeans <- list() # Cria lista vazia
+
+for (i in 1:length(my_list)) { # i = 1:6 (vai realizar isso em cada arquivo da lista)
+     p = groups[i] # pega o nome da colunas do grupos que vamos utilizar
+     mean1 <- mean(my_list[[i]][my_list[[i]][,p]=="Controle",2]) # cálculo da média para cada grupo em todos os p-valores
+     mean2 <- mean(my_list[[i]][my_list[[i]][,p]=="Caso",2])
+     mean3 <- mean(my_list[[i]][my_list[[i]][,p]=="Múltiplos Diagnósticos/ Caso com Histórico Familiar",2])
+     means <- cbind(categ, as.data.frame(rbind(mean1,mean2,mean3))) # juntando as médias de cada grupo em uma única tabela
+     allMeans[[i]] <- means # exportando os resultados de cada arquivo como um item da lista
+}
+
+names(allMeans) = names(file_contents_allscore) # renomear itens da lista
+```
+
+# **Curvas de Distribuição de PRS**
+
+Na parte de construção de gráfico é necessário fazer alguma coisas diferentes com o for loop, isso ocorre porque o ggplot2 não funciona bem com variáveis do for diretamente. Então foi necessário criar data.frames individuais antes de começar a usar o ggplot2,
+
+```{r}
+allGraphs <- list() # cria lista vazia
+a = 0 # cria variáveis que vamos utilizar
+b = 0
+d = 0
+
+colors <- c("Controle" = "#377EB8", "Caso" = "#E41A1C", "Múltiplos Diagnósticos/ Caso com Histórico Familiar" = "#4DAF4A")
+
+for (i in 1:length(my_list)) { # i = 1:6 (vai realizar isso em cada arquivo da lista)
+     a = i + 2 # a = coluna com o grupo (tem 1 grupo (a) para cada arquivo (i))
+     my.data <- subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a])) # ggplot2 é chato com variável do loop dentro da função, então precisamos criar um objeto com a tabela final e a tabela das médias antes
+     #my.data <- my.data[complete.cases(my.data[,2]),]
+     mean <- data.frame (z = allMeans[[i]][,2], categ)[c(1:3),] # tabela das médias
+     d <- groups[i] # título dos gráficos para diferenciarmos
+     graphs <- ggplot(my.data, aes(x=x, group=y, fill=y)) + #ggplot2 normal, nomeando como graphs
+          geom_density(alpha=0.5, show.legend = FALSE)+
+          geom_vline(data=mean, aes(xintercept=z), colour=c("#377EB8","#E41A1C","#4DAF4A"), linetype="dashed", size=1.2, show.legend = FALSE)+
+          scale_fill_manual(values = colors) +
+          scale_color_manual(values = colors)+
+          theme_classic()+
+          theme(legend.title = element_text(size=12, color="Black", family="Merriweather", face="bold.italic"), # Formatação dos textos e eixos
+               plot.title = element_text(family = "Playfair", color="black", size=20, face="bold.italic"),
+               plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold.italic"),
+               axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+               axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),
+               axis.ticks.y = element_blank(),
+               axis.text.y = element_blank())+
+          labs(x = "Polygenic Risk Score", # Título, subtítulo e títulos dos eixos
+              y = "Density",
+              fill = "Group")+
+          ggtitle (d)
+     b = b + 1 # mudar a posição de cada gráfico na lista
+     allGraphs[[b]] <- graphs # adicionar cada gráfico na lista em uma posição diferente
+}
+```
+
+```{r}
+allRaincloud <- list() # cria lista vazia
+a = 0 # cria variáveis que vamos utilizar
+b = 0
+d = 0
+
+for (i in 1:length(my_list)) { # i = 1:6 (vai realizar isso em cada arquivo da lista)
+     a = i + 2
+     my.data <- subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a])) # ggplot2 é chato com variável do loop dentro da função, então precisamos criar um objeto com a tabela final e a tabela das médias antes
+     #my.data <- my.data[complete.cases(my.data[,2]),]
+     graphs <- ggplot(my.data, aes(x=y, y=x))+
+          ggdist::stat_halfeye(aes(fill = y), alpha = 0.4, show.legend = FALSE, adjust = .5, width = .6, .width = 0, justification = -.3) + 
+          geom_boxplot(aes(color = y), width = 0.25 ,show.legend = FALSE, outlier.shape = NA) + # estética dos box plots
+          geom_jitter(aes(color = y, fill = y), alpha = 0.7, show.legend = FALSE, position = position_jitter(width = 0.1, seed = 0), size = 0.3) +
+          theme_classic()+
+          theme(legend.title = element_text(size=12, color="Black", family="Merriweather", face="bold.italic"), # Formatação dos textos e eixos
+               plot.title = element_text(family = "Playfair", color="black", size=20, face="bold.italic"),
+               plot.subtitle = element_text(family = "Merriweather", color="gray24", size=12, face="bold.italic"),
+               axis.title = element_text(family = "Lato", color="black", size = 12, face="bold"),
+               axis.text = element_text(family = "Lato", color="black", size = 10, face="bold"),              
+               axis.ticks.y = element_blank(),
+               axis.text.y = element_blank(),
+               axis.line.y = element_blank(),
+               axis.title.y = element_blank())+
+          scale_fill_manual(values = colors) +
+          scale_color_manual(values = colors)+
+          labs(x = "Group", # Título, subtítulo e títulos dos eixos
+              y = "Polygenic Risk Score",
+              color = "Group",
+              fill = "Group")+
+          guides(color = guide_legend(override.aes = list(size = 5)))+ # tamanho das bolinhas da legenda
+          coord_cartesian(xlim = c(1.2, NA), clip = "off")+
+          coord_flip()
+     b = b + 1 # mudar a posição de cada gráfico na lista
+     graphs
+     allRaincloud[[b]] <- graphs # adicionar cada gráfico na lista em uma posição diferente
+}
+```
+
+## **Results**
+
+```{r}
+table(export$groupsADHD)
+table(export$groupsANX)
+table(export$groupsMDD)
+
+print(allGraphs)
+print(allRaincloud)
+```
+
+# **Statistics**
+```{r}
+varlist <- c("groupsADHD", "groupsANX", "groupsMDD")
+R2_list <- list()
+b=0
+p_list <- list()
+
+for (i in 1:length(my_list)) { 
+     a <- i + 2
+     mod <- as.formula(sprintf("%s ~ PRS", varlist[i]))
+     cont_caso <- subset (my_list[[i]], my_list[[i]][,a]=="Controle"| my_list[[i]][,a]=="Caso") 
+     cont_mdp <- subset (my_list[[i]], my_list[[i]][,a]=="Controle"| my_list[[i]][,a]=="Múltiplos Diagnósticos/ Caso com Histórico Familiar") 
+     caso_mdp <- subset (my_list[[i]], my_list[[i]][,a]=="Caso"| my_list[[i]][,a]=="Múltiplos Diagnósticos/ Caso com Histórico Familiar")
+     R2_cont_caso <- as.data.frame(NagelkerkeR2(glm(formula = mod, family = binomial(link="logit"), data=cont_caso)))
+     R2_cont_mdp <- as.data.frame(NagelkerkeR2(glm(formula = mod, family = binomial(link="logit"), data=cont_mdp)))
+     R2_caso_mdp <- as.data.frame(NagelkerkeR2(glm(formula = mod, family = binomial(link="logit"), data=caso_mdp)))
+     R2_list[[i]] <- cbind(c("cont_caso", "cont_mdp", "caso_mdp"), rbind(R2_cont_caso, R2_cont_mdp, R2_caso_mdp))
+     
+     b = b + 1
+     p_list[[b]] <- summary(glm(formula = mod, family = binomial(link="logit"), data=cont_caso))
+     b = b + 1
+     p_list[[b]] <- summary(glm(formula = mod, family = binomial(link="logit"), data=cont_mdp))
+     b = b + 1
+     p_list[[b]] <- summary(glm(formula = mod, family = binomial(link="logit"), data=caso_mdp))
+     
+}
+exp(cbind(OR=coef(model), confint(model, level = 0.95)))
+model <- (glm(formula = mod, family = binomial(link="logit"), data=cont_caso))
+
+names(R2_list) <- varlist # renomear itens da lista
+names(p_list) <- rep(varlist, each =3) # renomear itens da lista
+
+print(R2_list)
+print(p_list)
+```
+
+# **Shapiro-Wilk, Kruskal-Wallis, Dunn**
+
+```{r eval=FALSE, include=FALSE}
+allShapiro <- list() # cria lista vazia
+a = 0 # cria variáveis que vamos utilizar
+b = 0
+
+for (i in 1:length(my_list)) { 
+     a = i + 2
+     m <- shapiro.test(subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a]), y=="Controle")[,1])
+     n <- shapiro.test(subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a]), y=="Caso")[,1])
+     b = b + 1
+     allShapiro[[b]] <- m
+     b = b + 1
+     allShapiro[[b]] <- n
+}
+
+print(allShapiro)
+
+allKruskal <- list() # cria lista vazia
+allDunn <- list() # cria lista vazia
+a = 0 # cria variáveis que vamos utilizar
+b = 0
+
+for (i in 1:length(my_list)) { 
+     a = i + 2
+     p <- kruskal.test(x ~ y, data = (subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a]), y!="Somente Histórico Familiar")))
+     q <- dunn_test(x ~ y, data = (subset(data.frame (x = my_list[[i]][,2], y = my_list[[i]][,a]), y!="Somente Histórico Familiar")), p.adjust.method="none")
+     b = b + 1
+     allKruskal[[b]] <- p
+     allDunn[[b]] <- q
+}
+
+print(allKruskal)
+print(allDunn)
+```
