@@ -57,28 +57,6 @@ Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base SCZ_GWAS.g
 # Fazer o geralzão com o gwas de SCZ
 Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base SCZ_GWAS.gz --out ./PRS_Original_fastscore/PRS_Score_Geral_SCZ --chr 0 --A1 3 --A2 4 --stat 8 --beta --snp 1 --bp 2 --pvalue 10 --index --binary-target F --cov Data_Final_pca4.eigenvec --all-score --fastscore T --bar-levels 0.00000001,0.01,0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1 --thread 4 --pheno export_projeto.txt --pheno-col groups
 
-######## Filtro Ancestralidade Europeia ########
-./plink --bfile Data_Final --keep ./admixtureEUR/export_admixtureEUR_keep85.txt  --make-bed --out ./admixtureEUR/Data_Final_EUR85
-./plink --bfile Data_Final --keep ./admixtureEUR/export_admixtureEUR_keep70.txt  --make-bed --out ./admixtureEUR/Data_Final_EUR70
-./plink --bfile Data_Final --keep ./admixtureEUR/export_admixtureEUR_keep60.txt  --make-bed --out ./admixtureEUR/Data_Final_EUR60
-./plink --bfile ./admixtureEUR/Data_Final_EUR85 --pca 4 --out ./admixtureEUR/Data_Final_EUR85_pca4
-./plink --bfile ./admixtureEUR/Data_Final_EUR70 --pca 4 --out ./admixtureEUR/Data_Final_EUR70_pca4
-./plink --bfile ./admixtureEUR/Data_Final_EUR60 --pca 4 --out ./admixtureEUR/Data_Final_EUR60_pca4
-
-######## Filtro Sexo ########
-./plink --bfile Data_Final --keep ./Sex/export_masculino_keep.txt  --make-bed --out ./Sex/Data_Final_Masc
-./plink --bfile Data_Final --keep ./Sex/export_feminino_keep.txt  --make-bed --out ./Sex/Data_Final_Fem
-./plink --bfile ./Sex/Data_Final_Masc --pca 4 --out ./Sex/Data_Final_Masc_pca4
-./plink --bfile ./Sex/Data_Final_Fem --pca 4 --out ./Sex/Data_Final_Fem_pca4
-
-######## Sex Specific GWAS ADHD ########
-wget -c https://figshare.com/ndownloader/files/35310532 -O ADHD_M_GWAS.gz
-wget -c https://figshare.com/ndownloader/files/35310529 -O ADHD_F_GWAS.gz
-
-mkdir PRS_SexSpecificADHD
-Rscript ./PRSice.R --prsice ./PRSice_linux --target ./Sex/Data_Final_Masc --base ADHD_M_GWAS.gz --out ./PRS_SexSpecificADHD/PRS_Score_ADHD_M --chr 1 --A1 3 --A2 4 --stat 5 --beta --snp 0 --bp 2 --pvalue 7 --index --binary-target F --cov ./Sex/Data_Final_Masc_pca4.eigenvec --all-score --fastscore T --bar-levels 0.00000001,0.01,0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1 --thread 4 --pheno export_projeto.txt --pheno-col groupsADHD --extract ./PRS_SexSpecificADHD/PRS_Score_ADHD_M.valid 
-Rscript ./PRSice.R --prsice ./PRSice_linux --target ./Sex/Data_Final_Fem --base ADHD_F_GWAS.gz --out ./PRS_SexSpecificADHD/PRS_Score_ADHD_F --chr 1 --A1 3 --A2 4 --stat 5 --beta --snp 0 --bp 2 --pvalue 7 --index --binary-target F --cov ./Sex/Data_Final_Fem_pca4.eigenvec --all-score --fastscore T --bar-levels 0.00000001,0.01,0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1 --thread 4 --pheno export_projeto.txt --pheno-col groupsADHD --extract ./PRS_SexSpecificADHD/PRS_Score_ADHD_F.valid
-
 ######## Somente caso x controle ########
 
 mkdir PRS_cc_allscore
@@ -87,40 +65,3 @@ Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ANX_GWAS.g
 Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base BD_GWAS.gz --out ./PRS_cc_allscore/PRS_Score_BD --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno export_projeto_cc.txt --pheno-col groupsBD
 Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base MDD_GWAS.gz --out ./PRS_cc_allscore/PRS_Score_MDD --A1 1 --A2 2 --stat 4 --beta --snp 0 --pvalue 6 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno export_projeto_cc.txt --pheno-col groupsMDD
 Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base SCZ_GWAS.gz --out ./PRS_cc_allscore/PRS_Score_SCZ --chr 0 --A1 3 --A2 4 --stat 8 --beta --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno export_projeto_cc.txt --pheno-col groupsSCZ
-
-######## Considerando somente histórico familiar como caso ########
-
-Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base BD_GWAS.gz --out ./PRS_cc_allscore/PRS_Score_BD --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno export_projeto_hist_bdscz.txt --pheno-col groupsBD
-Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base SCZ_GWAS.gz --out ./PRS_cc_allscore/PRS_Score_SCZ --chr 0 --A1 3 --A2 4 --stat 8 --beta --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno export_projeto_hist_bdscz.txt --pheno-col groupsSCZ
-
-######## ADHD novoo ############
-
-Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./TCC/2022_GWAS_ADHD.gz --out ./TCC/PRS_Score_ADHD_2022_c_new --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov ./TCC/Data_Final_ADHD_c_pca4.eigenvec --all-score --thread 4 --pheno ./TCC/export_projeto_cc.txt --pheno-col groupsADHD --extract ./TCC/PRS_Score_ADHD_2022_c_new.valid
-
-Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./TCC/2022_GWAS_ADHD.gz --out ./TCC/PRS_Score_ADHD_2022_sc_new --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov ./TCC/Data_Final_ADHD_sc_pca4.eigenvec --all-score --thread 4 --pheno ./TCC/export_CISM.txt --pheno-col scADHD --extract ./TCC/PRS_Score_ADHD_2022_c_new.valid
-
-Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ./TCC/2022_GWAS_ADHD.gz --out ./TCC/AAA_PRS_Score_ADHD_2022_sc_new --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --binary-target T --all-score --thread 4 --pheno ./TCC/export_CISM.txt --pheno-col scADHD --extract ./TCC/PRS_Score_ADHD_2022_c_new.valid
-
-
-
-######## Calculando o R2 em um loop para cada transtorno ##########
-
-while read p;
-do Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ADHD_GWAS.gz --out ./R2_Projeto/ADHD/$p --chr 0 --A1 3 --A2 4 --stat 8 --or --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno ./R2_Projeto/$p --pheno-col groupsADHD 
-done < ./R2_Projeto/loop_ADHD.txt
-
-while read p;
-do Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base ANX_GWAS.gz --out ./R2_Projeto/ANX/$p --chr 1 --A1 3 --A2 4 --stat 6 --or --snp 0 --bp 2 --pvalue 8 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno ./R2_Projeto/$p --pheno-col groupsANX
-done < ./R2_Projeto/loop_ANX.txt
-
-while read p;
-do Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base BD_GWAS.gz --out ./R2_Projeto/BD/$p --chr 0 --A1 3 --A2 4 --stat 5 --beta --snp 2 --bp 1 --pvalue 7 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno ./R2_Projeto/$p --pheno-col groupsBD
-done < ./R2_Projeto/loop_BD.txt
-
-while read p;
-do Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base MDD_GWAS.gz --out ./R2_Projeto/MDD/$p --A1 1 --A2 2 --stat 4 --beta --snp 0 --pvalue 6 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno ./R2_Projeto/$p --pheno-col groupsMDD
-done < ./R2_Projeto/loop_MDD.txt
-
-while read p;
-do Rscript ./PRSice.R --prsice ./PRSice_linux --target Data_Final --base SCZ_GWAS.gz --out ./R2_Projeto/SCZ/$p --chr 0 --A1 3 --A2 4 --stat 8 --beta --snp 1 --bp 2 --pvalue 10 --index --binary-target T --cov Data_Final_pca4.eigenvec --all-score --thread 4 --pheno ./R2_Projeto/$p --pheno-col groupsSCZ
-done < ./R2_Projeto/loop_SCZ.txt
