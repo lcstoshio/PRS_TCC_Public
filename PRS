@@ -1,0 +1,51 @@
+# Download PLINK 1.9
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20230116.zip
+unzip plink_linux_x86_64_20230116.zip
+rm toy* plink_linux_x86_64_20230116.zip
+
+######## PCA Files ########
+./plink --bfile prefix_data --pca 10 --out ./prefx_data_pca10
+
+
+
+
+######## Running PRSice-2 ########
+# Additional commands I'm used to using
+# --chr, --A1, --A2, --stat, --beta/--or, --bp, --pvalue --index \ # Indicate the columns referring to each of these variables in the GWAS file (column 1 = 0; column 2 = 1, ...) (check if the GWAS give beta or odds ratio)
+# --binary-target T \ # Argument pointing out whether the phenotype is binary or continuous
+# --fastscore T \ # TRUE tells PRSice to only run PRS for the p limits delimited in --bar-levels
+# --all-score \ # Calculates the PRS for all thresholds of p
+# --cov \ # File with the covariates that will be used to correct the PRS result (PCA eigenvec file - *.eigenvec) - more covariates can be added, such as sex, age, socioeconomic data, etc...
+# --print-snp \ # Print a list of SNPs used in the analysis
+# --pheno \ # File with the phenotype for your sample
+# --score-std \ # Standardize the effect size
+
+Rscript ./PRSice.R --prsice ./PRSice_linux --target prefix_data --base ./GWAS.gz --out ./PRS_Score --chr 1 --A1 3 --A2 4 --stat 12 --beta --snp 5 --bp 2 --pvalue 7 --cov ./cov_file --index --all-score --fastscore --print-snp --pheno ./phenotype_file --score-std
+
+
+
+
+######## Running PRSCS ########
+
+PRS-CSref_EUR=/caminho/arquivo/refs/ldblk_1kg_eur
+PRScs=/caminho/arquivo/PRScs/PRScs.py
+
+# Selecting the columns from the Sumstats in the right order and creating a tab-separated file (SNP, A1, A2, OR/BETA, P)
+zcat  GWAS.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > GWAS_PRSCS.txt
+
+# Changing the column names in R
+# Depends if it's BETA or Odds Ratio
+# R 
+# data <- as.data.frame(fread("./GWAS_PRSCS.txt", header = TRUE)
+# colnames(data) <- c("SNP", "A1", "A2", "BETA", "P")
+# colnames(data) <- c("SNP", "A1", "A2", "OR", "P")
+# write_tsv(data, file = "./GWAS_PRSCS.txt")
+
+# Adjusting effects size of the GWAS
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./prefix_data --sst_file=./GWAS_PRSCS.txt --n_gwas=number_individuals_gwas --out_dir=./PRSCS_adj
+
+# Merging the results of each chromosome
+cat  ./PRSCS_adj_pst_eff_a1_b0.5_phiauto_chr* > ./PRSCS_adj_pst_eff_a1_b0.5_phiauto_all.txt
+
+# Calculating the score in PLINK
+plink --bfile ./prefix_data --score ./PRSCS_adj_pst_eff_a1_b0.5_phiauto_all.txt 2 4 6 sum center --out ./PRSCS_Score
