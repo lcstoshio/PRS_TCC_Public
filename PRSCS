@@ -1,0 +1,208 @@
+######## Download and Edit Sumstats ########
+
+######## Target Data ########
+# Download PLINK 1.9
+wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20230116.zip
+unzip plink_linux_x86_64_20230116.zip
+rm toy* plink_linux_x86_64_20230116.zip
+
+./plink --bfile gen_ind --snps-only just-acgt --make-bed --out gen_ind_del1
+./plink --bfile gen_ind_del1 --maf 0.01 --geno 0.01 --hwe 0.000001 --make-bed --out gen_ind_del2
+./plink --bfile gen_ind_del2 --not-chr 0,23-26 --make-bed --keep-allele-order --out gen_ind_del3
+./plink --bfile gen_ind_del3 --list-duplicate-vars suppress-first --make-bed --out gen_ind_del4
+./plink --bfile gen_ind_del3 --exclude gen_ind_del4.dupvar  --make-bed --out gen_ind_Final
+rm gen_ind_del*
+./plink --bfile gen_ind_Final --genome --min 0.2 --out ibd_020
+awk '{print $1,$2}' ibd_020.genome > ibd_020_remove.txt
+nano ibd_020_remove.txt
+./plink --bfile gen_ind_Final --remove ibd_020_remove.txt --pca 10 --out gen_ind_Final_pca10
+./plink --bfile gen_ind_Final --remove ibd_020_remove.txt --pca 20 --out gen_ind_Final_pca20
+
+######## R ########
+library(dplyr)
+library(readr)
+library(plyr)
+
+pca20 <- select (read.table ("gen_ind_Final_pca20.eigenvec", header = F), -1)
+colnames(pca20) <- c("IID", paste0("PC", 1:20))
+
+keep <- readRDS("./Keep_gen.rds")
+
+pca20_final <- join_all(list(keep, pca20), by="IID", type="inner")
+pca20_final <- pca20_final[,-c(2:4)]
+
+write_tsv(pca20_final, file = "./gen_pca20.eigenvec")
+
+q()
+################
+
+######## PRSCS ########
+
+######## Editing Sumstats ########
+# Selecting the columns from the Sumstats in the right order and creating a tab-separated file (SNP, A1, A2, OR/BETA, P)
+zcat  ./AD/2019_GWAS_AD.gz | awk -v OFS='\t' '{print $6, $4, $5, $13, $8}' > ./AD/2019_GWAS_AD.txt
+zcat  ./ADHD/2023_GWAS_ADHD.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./ADHD/2023_GWAS_ADHD.txt
+zcat  ./AN/2019_GWAS_AN.gz  | awk -v OFS='\t' '{print $3, $5, $4, $6, $8}' > ./AN/2019_GWAS_AN.txt 
+zcat  ./ANX/2016_GWAS_ANX.gz | awk -v OFS='\t' '{print $1, toupper($4), toupper($5), $7, $9}' > ./ANX/2016_GWAS_ANX.txt
+zcat  ./ASD/2019_GWAS_ASD.gz | awk -v OFS='\t' '{print $2, $4, $5, $7, $9}' > ./ASD/2019_GWAS_ASD.txt
+zcat  ./BD/2021_GWAS_BD.gz | awk -v OFS='\t' '{print $3, $4, $5, $6, $8}' > ./BD/2021_GWAS_BD.txt
+zcat  ./CD/2019_GWAS_CD.gz | awk -v OFS='\t' '{print $3, $5, $4, $6, $8}' > ./CD/2019_GWAS_CD.txt
+zcat  ./MDD/2019_GWAS_MDD.gz | awk -v OFS='\t' '{print $1, toupper($2), toupper($3), $5, $7}' > ./MDD/2019_GWAS_MDD.txt
+zcat  ./OCD/2018_GWAS_OCD.gz | awk -v OFS='\t' '{print $2, $4, $5, $7, $9}' > ./OCD/2018_GWAS_OCD.txt
+zcat  ./PTSD/2019_GWAS_PTSD.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./PTSD/2019_GWAS_PTSD.txt
+zcat  ./SCZ/2022_GWAS_SCZ.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./SCZ/2022_GWAS_SCZ.txt
+zcat  ./TS/2019_GWAS_TS.gz | awk -v OFS='\t' '{print $1, $4, $5, $7, $9}' > ./TS/2019_GWAS_TS.txt
+
+zcat  ./HEIGHT/2022_GWAS_HEIGHT.gz | awk -v OFS='\t' '{print $2, $5, $6, $8, $10}' > ./HEIGHT/2022_GWAS_HEIGHT.txt
+zcat  ./EA/2022_GWAS_EA.gz | awk -v OFS='\t' '{print $1, $4, $5, $7, $10}' > ./EA/2022_GWAS_EA.txt
+zcat  ./SA/2021_GWAS_SA.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./SA/2021_GWAS_SA.txt
+zcat  ./SD/2020_GWAS_SD.gz | awk -v OFS='\t' '{print $2, $5, $6, $8, $12}' > ./SD/2020_GWAS_SD.txt
+zcat  ./SWB/2016_GWAS_SWB.gz | awk -v OFS='\t' '{print $1, $4, $5, $7, $9}' > ./SWB/2016_GWAS_SWB.txt
+
+zcat  ./MDD_MVP/2023_GWAS_MDD_MVP.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./MDD_MVP/2023_GWAS_MDD_MVP.txt
+zcat  ./MDD_PGC_2023/2023_GWAS_MDD_PGC.gz | awk -v OFS='\t' '{print $3, $4, $5, $6, $8}' > ./MDD_PGC_2023/2023_GWAS_MDD_PGC.txt
+
+zcat ./SA_2023/2023_GWAS_SA.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./SA_2023/2023_GWAS_SA.txt
+zcat ./SA_2023/2023_GWAS_LAT_SA.gz | awk -v OFS='\t' '{print $2, $4, $5, $9, $11}' > ./SA_2023/2023_GWAS_LAT_SA.txt
+
+######## R ########
+library(fs)
+library(dplyr)
+library(purrr)
+library(readr)
+library(data.table)
+
+file_paths <- fs::dir_ls ("./", recurse = TRUE, glob = c("*_GWAS_*.txt"))
+file_contents <- file_paths %>%
+  map(function(path) {
+    as.data.frame(fread(path, header = TRUE))
+     })
+
+for (i in 1:length(file_contents)) {
+  if (min(file_contents[[i]][4]) < 0) {
+    colnames(file_contents[[i]]) <- c("SNP", "A1", "A2", "BETA", "P")
+  } else {
+    colnames(file_contents[[i]]) <- c("SNP", "A1", "A2", "OR", "P")
+  }
+}
+
+for (i in 1:length(file_contents)){
+  write_tsv(file_contents[[i]], file = file_paths[[i]])
+}
+
+q()
+################
+
+######## Running PRSCS ########
+
+# PRScs program and LDpanels were downloaded previously by Cassia
+
+ref_EUR=/refs/ldblk_1kg_eur
+PRScs=/PRScs.py
+
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./AD/2019_GWAS_AD.txt --n_gwas=455258 --out_dir=./AD/PRSCS_AD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./ADHD/2023_GWAS_ADHD.txt --n_gwas=225534 --out_dir=./ADHD/PRSCS_ADHD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./AN/2019_GWAS_AN.txt  --n_gwas=72517 --out_dir=./AN/PRSCS_AN
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./ANX/2016_GWAS_ANX.txt --n_gwas=21761 --out_dir=./ANX/PRSCS_ANX
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./ASD/2019_GWAS_ASD.txt --n_gwas=46350 --out_dir=./ASD/PRSCS_ASD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./BD/2021_GWAS_BD.txt --n_gwas=413466 --out_dir=./BD/PRSCS_BD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./CD/2019_GWAS_CD.txt --n_gwas=727126 --out_dir=./CD/PRSCS_CD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./MDD/2019_GWAS_MDD.txt --n_gwas=500199 --out_dir=./MDD/PRSCS_MDD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./OCD/2018_GWAS_OCD.txt --n_gwas=9725 --out_dir=./OCD/PRSCS_OCD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./PTSD/2019_GWAS_PTSD.txt --n_gwas=200000 --out_dir=./PTSD/PRSCS_PTSD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SCZ/2022_GWAS_SCZ.txt --n_gwas=175799 --out_dir=./SCZ/PRSCS_SCZ
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./TS/2019_GWAS_TS.txt --n_gwas=14307 --out_dir=./TS/PRSCS_TS
+
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./HEIGHT/2022_GWAS_HEIGHT.txt --n_gwas=2149939 --out_dir=./HEIGHT/PRSCS_HEIGHT
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./EA/2022_GWAS_EA.txt --n_gwas=765283 --out_dir=./EA/PRSCS_EA
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SA/2021_GWAS_SA.txt  --n_gwas=549743 --out_dir=./SA/PRSCS_SA
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SD/2020_GWAS_SD.txt --n_gwas=18223 --out_dir=./SD/PRSCS_SD
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SWB/2016_GWAS_SWB.txt --n_gwas=298420 --out_dir=./SWB/PRSCS_SWB
+
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./MDD_MVP/2023_GWAS_MDD_MVP.txt --n_gwas=1066228 --out_dir=./MDD_MVP/PRSCS_MDD_MVP
+
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SA_2023/2023_GWAS_SA.txt --n_gwas=958896 --out_dir=./SA_2023/PRSCS_SA_2023
+python3 $PRScs --ref_dir=$ref_EUR --bim_prefix=./gen_ind_Final --sst_file=./SA_2023/2023_GWAS_LAT_SA.txt --n_gwas=40577 --out_dir=./SA_2023/PRSCS_SA_LAT_2023
+
+# Creating a list to loop throught all of the phenotypes
+
+find -type f -name "*_pst_eff_a1_b0.5_phiauto_chr1.txt" > list_PRSCS.txt
+sed 's/_pst_eff_a1_b0.5_phiauto_chr1.txt//' list_PRSCS.txt > list_PRSCS2.txt
+
+# Merging the results of each chromosome
+
+while read p;
+do cat ./"$p"_pst_eff_a1_b0.5_phiauto_chr* > ./"$p"_pst_eff_a1_b0.5_phiauto_all.txt
+done < ./list_PRSCS2.txt
+
+# Calculating the score in PLINK
+
+while read p;
+do plink --bfile ./gen_ind_Final --remove ibd_020_remove.txt --score ./"$p"_pst_eff_a1_b0.5_phiauto_all.txt 2 4 6 sum --out ./"$p"_Score
+done < ./list_PRSCS2.txt
+
+# Getting a copy of everything in a final folder
+
+mkdir 231130_Final_Scores_PRSCS
+cp ./*/*.profile ./231130_Final_Scores_PRSCS
+
+# Pasting ID and subjectid in all of the scores and removing subjectid, IID, FID, PHENO, CNT and CNT2
+######## R ########
+library(fs)
+library(dplyr)
+library(purrr)
+library(readr)
+library(plyr)
+library(data.table)
+
+file_paths <- fs::dir_ls ("./231130_Final_Scores_PRSCS/", recurse = TRUE, glob = c("*.profile"))
+file_contents <- file_paths %>%
+  map(function(path) {
+    as.data.frame(read.table(path, header = TRUE))
+     })
+
+keep <- readRDS("./Keep_gen.rds")
+
+for (i in 1:length(file_contents)) {
+  files <- join_all(list(keep, file_contents[[i]]), by="IID", type="inner")
+  files <- files[,c(1,9)]
+  files$PRSCS_zscore <- as.numeric(scale(files$SCORESUM))
+  colnames(files) <- c("ID", "PRSCS", "PRSCS_zscore")
+  file_contents[[i]] <- files
+}
+
+for (i in 1:length(file_contents)){
+  write_tsv(file_contents[[i]], file = file_paths[[i]])
+}
+#####
+
+# Creating a .snp file with all the snps included in the analysis with their respective p-value
+
+file_paths_GWAS <- fs::dir_ls ("./", recurse = TRUE, glob = c("*_GWAS_*.txt"))
+file_contents_GWAS <- file_paths_GWAS %>%
+  map(function(path) {
+    as.data.frame(fread(path, header = TRUE))
+     })
+
+file_paths_CS <- fs::dir_ls ("./", recurse = TRUE, glob = c("*_pst_eff_a1_b0.5_phiauto_all.txt"))
+
+file_contents_CS <- file_paths_CS %>%
+  map(function(path) {
+    as.data.frame(fread(path, header = FALSE))
+     })
+
+for (i in 1:length(file_contents_CS)) {
+  colnames(file_contents_CS[[i]]) <- c("CHR", "SNP", "BP", "A1", "A2", "CS_EFFECT")
+  file_contents_CS[[i]] <- join_all(list(file_contents_CS[[i]], file_contents_GWAS[[i]][c(1,4,5)]), by="SNP", type="inner")
+}
+
+file_paths_CS_final <- file_paths_CS
+file_paths_CS_final <- sub(".*/", "./231130_Final_Scores_PRSCS/", file_paths_CS_final)
+file_paths_CS_final <- sub('_pst_eff_a1_b0.5_phiauto_all.txt','_Score.snp',file_paths_CS_final)
+
+for (i in 1:length(file_contents_CS)){
+  write_tsv(file_contents_CS[[i]], file = file_paths_CS_final[[i]])
+}
+
+q()
+################
